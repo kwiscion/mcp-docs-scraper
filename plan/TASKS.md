@@ -13,7 +13,7 @@
   - Implement minimal MCP server with `ping` tool
   - Verify MCP pipeline works end-to-end
 
-- **[TODO]** Task 2: Cache Manager Foundation
+- **[DONE]** Task 2: Cache Manager Foundation
 
   - Implement cache-manager service
   - Create cache types and filesystem helpers

@@ -19,7 +19,7 @@
   - Create cache types and filesystem helpers
   - Test store/retrieve/list/clear operations
 
-- **[TODO]** Task 3: `list_cached_docs` and `clear_cache` Tools
+- **[DONE]** Task 3: `list_cached_docs` and `clear_cache` Tools
   - Implement first real MCP tools
   - Wire tools to cache manager
   - Verify tool→service→cache pipeline

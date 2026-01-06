@@ -87,7 +87,9 @@ async function main() {
         readmeContent.content.includes("```") ||
         readmeContent.content.includes("[");
       console.log(
-        `   Markdown content detected: ${hasMarkdownFeatures ? "✅" : "⚠️ (might be plain text)"}`
+        `   Markdown content detected: ${
+          hasMarkdownFeatures ? "✅" : "⚠️ (might be plain text)"
+        }`
       );
     } else {
       console.log("   ❌ README.md not found");
@@ -127,7 +129,9 @@ async function main() {
           `   ✅ Downloaded successfully (${subdirContent.size} bytes)`
         );
         console.log(
-          `   Preview: ${subdirContent.content.substring(0, 100).replace(/\n/g, " ")}...`
+          `   Preview: ${subdirContent.content
+            .substring(0, 100)
+            .replace(/\n/g, " ")}...`
         );
       } else {
         console.log("   ❌ File not found");

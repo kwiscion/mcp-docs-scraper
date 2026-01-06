@@ -8,4 +8,10 @@ export {
   type ClearCacheInput,
   type ClearCacheOutput,
 } from "./clear-cache.js";
+export {
+  indexDocs,
+  parseGitHubUrl,
+  type IndexDocsInput,
+  type IndexDocsOutput,
+} from "./index-docs.js";
 

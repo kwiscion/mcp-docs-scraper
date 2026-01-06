@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { listCachedDocs, clearCache } from "./tools/index.js";
+import { listCachedDocs, clearCache, indexDocs } from "./tools/index.js";
 
 export interface DocsScraperServer {
   run(): Promise<void>;
@@ -70,6 +70,57 @@ export function createServer(): DocsScraperServer {
           },
         ],
       };
+    }
+  );
+
+  // Register index_docs tool
+  server.tool(
+    "index_docs",
+    "Fetch and cache documentation from a GitHub repository. Downloads markdown files and stores them locally for fast access.",
+    {
+      url: {
+        type: "string",
+        description:
+          "GitHub repository URL (e.g., https://github.com/owner/repo)",
+      },
+      type: {
+        type: "string",
+        description:
+          'Source type: "github", "scrape", or "auto" (default: auto)',
+      },
+      force_refresh: {
+        type: "boolean",
+        description: "Ignore cache and re-fetch (default: false)",
+      },
+    },
+    async (params) => {
+      try {
+        const result = await indexDocs({
+          url: params.url as string,
+          type: params.type as "github" | "scrape" | "auto" | undefined,
+          force_refresh: params.force_refresh as boolean | undefined,
+        });
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ error: message }, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
     }
   );
 

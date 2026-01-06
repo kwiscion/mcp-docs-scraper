@@ -40,7 +40,7 @@
   - Handle subdirectories
   - Graceful 404 handling
 
-- **[TODO]** Task 6: `index_docs` Tool (GitHub Only)
+- **[DONE]** Task 6: `index_docs` Tool (GitHub Only)
 
   - Implement index_docs for GitHub URLs
   - Store fetched content in cache

@@ -34,7 +34,7 @@
   - Fetch repo file tree via Contents API
   - Track rate limits
 
-- **[TODO]** Task 5: GitHub Fetcher - Content Download
+- **[DONE]** Task 5: GitHub Fetcher - Content Download
 
   - Add raw file content fetching
   - Handle subdirectories

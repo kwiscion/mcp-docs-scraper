@@ -417,6 +417,107 @@ export async function fetchRepoTree(
 }
 
 /**
+ * Result of fetching file content.
+ */
+export interface FetchContentResult {
+  /** The file path */
+  path: string;
+  /** The file content */
+  content: string;
+  /** Size in bytes */
+  size: number;
+}
+
+/**
+ * Fetches raw file content from GitHub via raw.githubusercontent.com.
+ * This endpoint has no rate limits (served from CDN).
+ *
+ * @param repoString Repository in "owner/repo" format
+ * @param branch Branch name
+ * @param filePath Path to the file within the repo
+ * @returns File content or null if not found
+ */
+export async function fetchFileContent(
+  repoString: string,
+  branch: string,
+  filePath: string
+): Promise<FetchContentResult | null> {
+  const { owner, repo } = parseRepoString(repoString);
+
+  // Use raw.githubusercontent.com - no rate limits, served from CDN
+  const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
+
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": "mcp-docs-scraper",
+    },
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      // File not found - return null gracefully
+      return null;
+    }
+    throw new Error(
+      `Failed to fetch file content: ${response.status} ${response.statusText}`
+    );
+  }
+
+  const content = await response.text();
+
+  return {
+    path: filePath,
+    content,
+    size: new TextEncoder().encode(content).length,
+  };
+}
+
+/**
+ * Fetches multiple files from a repository.
+ * Handles 404s gracefully by skipping missing files.
+ *
+ * @param repoString Repository in "owner/repo" format
+ * @param branch Branch name
+ * @param filePaths Array of file paths to fetch
+ * @returns Array of successfully fetched files and array of not found paths
+ */
+export async function fetchMultipleFiles(
+  repoString: string,
+  branch: string,
+  filePaths: string[]
+): Promise<{
+  files: FetchContentResult[];
+  notFound: string[];
+}> {
+  const files: FetchContentResult[] = [];
+  const notFound: string[] = [];
+
+  // Fetch files in parallel for better performance
+  const results = await Promise.all(
+    filePaths.map(async (filePath) => {
+      try {
+        const result = await fetchFileContent(repoString, branch, filePath);
+        return { filePath, result };
+      } catch (error) {
+        // Log error but don't fail the whole batch
+        console.error(`Error fetching ${filePath}:`, error);
+        return { filePath, result: null };
+      }
+    })
+  );
+
+  for (const { filePath, result } of results) {
+    if (result) {
+      files.push(result);
+    } else {
+      notFound.push(filePath);
+    }
+  }
+
+  return { files, notFound };
+}
+
+/**
  * Gets the current GitHub API rate limit status.
  */
 export function getRateLimitStatus(): string {

@@ -28,7 +28,7 @@
 
 ## Phase 2: GitHub Integration
 
-- **[TODO]** Task 4: GitHub Fetcher - Tree Structure
+- **[DONE]** Task 4: GitHub Fetcher - Tree Structure
 
   - Implement GitHub API client
   - Fetch repo file tree via Contents API

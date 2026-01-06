@@ -46,7 +46,7 @@
   - Store fetched content in cache
   - Return tree structure and stats
 
-- **[TODO]** Task 7: `get_docs_tree` Tool
+- **[DONE]** Task 7: `get_docs_tree` Tool
 
   - Implement tree retrieval from cache
   - Support subtree filtering

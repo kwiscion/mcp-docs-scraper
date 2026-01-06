@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { listCachedDocs, clearCache, indexDocs } from "./tools/index.js";
+import { listCachedDocs, clearCache, indexDocs, getDocsTree } from "./tools/index.js";
 
 export interface DocsScraperServer {
   run(): Promise<void>;
@@ -99,6 +99,55 @@ export function createServer(): DocsScraperServer {
           url: params.url as string,
           type: params.type as "github" | "scrape" | "auto" | undefined,
           force_refresh: params.force_refresh as boolean | undefined,
+        });
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ error: message }, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // Register get_docs_tree tool
+  server.tool(
+    "get_docs_tree",
+    "Get the hierarchical file tree for cached documentation. Use after index_docs to browse available files.",
+    {
+      docs_id: {
+        type: "string",
+        description: "The docs ID from index_docs response (required)",
+      },
+      path: {
+        type: "string",
+        description: "Subtree path to filter (optional, default: root)",
+      },
+      max_depth: {
+        type: "number",
+        description: "Maximum depth to return (optional, default: unlimited)",
+      },
+    },
+    async (params) => {
+      try {
+        const result = await getDocsTree({
+          docs_id: params.docs_id as string,
+          path: params.path as string | undefined,
+          max_depth: params.max_depth as number | undefined,
         });
         return {
           content: [

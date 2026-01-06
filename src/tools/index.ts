@@ -14,4 +14,9 @@ export {
   type IndexDocsInput,
   type IndexDocsOutput,
 } from "./index-docs.js";
+export {
+  getDocsTree,
+  type GetDocsTreeInput,
+  type GetDocsTreeOutput,
+} from "./get-tree.js";
 

@@ -44,15 +44,15 @@ mcp-docs-scraper/
 ```json
 {
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "cheerio": "^1.0.0",
-    "turndown": "^7.1.0",
-    "minisearch": "^6.0.0"
+    "@modelcontextprotocol/sdk": "^1.25.0",
+    "cheerio": "^1.1.2",
+    "turndown": "^7.2.0",
+    "minisearch": "^7.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "tsx": "^4.0.0",
-    "@types/node": "^20.0.0",
+    "typescript": "^5.9.0",
+    "tsx": "^4.21.0",
+    "@types/node": "^22.0.0",
     "@types/turndown": "^5.0.0"
   }
 }
@@ -66,6 +66,22 @@ mcp-docs-scraper/
 | `cheerio`                   | HTML parsing (server-side)   | jsdom (heavier), htmlparser2 (lower-level)        |
 | `turndown`                  | HTML→Markdown                | unified/rehype (more complex), custom (more work) |
 | `minisearch`                | Lightweight full-text search | lunr (larger), flexsearch (similar)               |
+
+### Version Notes & Breaking Changes
+
+**MiniSearch 7.x** (upgraded from 6.x):
+- Targets ES6 (ES2015+) - won't work in IE11 or earlier
+- Better TypeScript typing for `combineWith` search options
+- Fixed tokenizer regression with contiguous spaces/punctuation
+- No issues for Node.js environments (ES6 fully supported)
+
+**@types/node 22.x+** (upgraded from 20.x):
+- Provides types for latest Node.js LTS features
+- Recommended to match current Node.js runtime
+
+**MCP SDK 1.25.x**:
+- Latest stable version (v2 planned for Q1 2026)
+- v1.x will receive bug fixes and security updates for 6+ months after v2 ships
 
 ---
 
@@ -183,6 +199,9 @@ const turndownService = new TurndownService({
   strongDelimiter: "**",
 });
 
+// Remove unwanted elements completely
+turndownService.remove(["script", "style", "noscript", "iframe"]);
+
 // Preserve code block language hints
 turndownService.addRule("fencedCodeBlock", {
   filter: (node) =>
@@ -193,7 +212,27 @@ turndownService.addRule("fencedCodeBlock", {
     return `\n\`\`\`${lang}\n${code.textContent}\n\`\`\`\n`;
   },
 });
+
+// Convert relative URLs to absolute for scraped content
+turndownService.addRule("absoluteLinks", {
+  filter: "a",
+  replacement: (content, node) => {
+    const href = node.getAttribute("href");
+    if (!href) return content;
+
+    // Convert relative URLs to absolute
+    try {
+      const absoluteUrl = new URL(href, baseUrl).href;
+      return `[${content}](${absoluteUrl})`;
+    } catch {
+      // If URL is invalid, return as-is
+      return `[${content}](${href})`;
+    }
+  },
+});
 ````
+
+**Note:** The `baseUrl` variable should be passed to the content cleaner service for proper relative URL resolution.
 
 ---
 

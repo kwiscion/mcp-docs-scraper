@@ -338,6 +338,7 @@ Can convert raw HTML to clean Markdown, stripping navigation and boilerplate.
    - Code blocks preserved with language
    - Headings converted correctly
    - Links work in markdown format
+   - Relative URLs converted to absolute
 
 ### Rollback
 
@@ -346,7 +347,10 @@ Remove content-cleaner.ts.
 ### Notes
 
 - This is prep for web scraping
-- Configure Turndown with custom rules
+- Configure Turndown with custom rules (see `02-implementation-notes.md:191-235`)
+- Remove unwanted elements: script, style, noscript, iframe
+- Convert relative URLs to absolute for scraped content
+- Pass baseUrl to service for proper URL resolution
 - Test with real docs HTML (React, Vue, etc.)
 
 ---

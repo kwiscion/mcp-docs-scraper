@@ -9,10 +9,11 @@
 
 ## Target stack:
 
-- Node.js + TypeScript
-- MCP SDK (`@modelcontextprotocol/sdk`)
-- Cheerio for HTML parsing
-- Turndown for HTML→Markdown conversion
+- Node.js + TypeScript (5.9+)
+- MCP SDK (`@modelcontextprotocol/sdk` 1.25+)
+- Cheerio 1.1+ for HTML parsing
+- Turndown 7.2+ for HTML→Markdown conversion
+- MiniSearch 7.0+ for full-text search
 - Local filesystem cache
 
 ## Locked Product Decisions
@@ -41,3 +42,4 @@
 | [02-implementation-notes.md](./02-implementation-notes.md)                           | Engineering details, gotchas, file structure |
 | [03-incremental-implementation-slices.md](./03-incremental-implementation-slices.md) | **Source of truth** - ordered execution plan |
 | [TASKS.md](./TASKS.md)                                                               | Assignable task list (1:1 with slices)       |
+| [TECHNOLOGY-RESEARCH.md](./TECHNOLOGY-RESEARCH.md)                                   | Technology verification and version audit    |

@@ -19,4 +19,10 @@ export {
   type GetDocsTreeInput,
   type GetDocsTreeOutput,
 } from "./get-tree.js";
+export {
+  getDocsContent,
+  type GetDocsContentInput,
+  type GetDocsContentOutput,
+  type FileContent,
+} from "./get-content.js";
 

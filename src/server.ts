@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { listCachedDocs, clearCache, indexDocs, getDocsTree } from "./tools/index.js";
+import { listCachedDocs, clearCache, indexDocs, getDocsTree, getDocsContent } from "./tools/index.js";
 
 export interface DocsScraperServer {
   run(): Promise<void>;
@@ -148,6 +148,56 @@ export function createServer(): DocsScraperServer {
           docs_id: params.docs_id as string,
           path: params.path as string | undefined,
           max_depth: params.max_depth as number | undefined,
+        });
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ error: message }, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // Register get_docs_content tool
+  server.tool(
+    "get_docs_content",
+    "Retrieve actual content of specific doc files from cache. Returns content with extracted headings for navigation.",
+    {
+      docs_id: {
+        type: "string",
+        description: "The docs ID from index_docs response (required)",
+      },
+      paths: {
+        type: "array",
+        items: { type: "string" },
+        description: "Array of file paths to fetch (required)",
+      },
+      format: {
+        type: "string",
+        description: 'Output format: "markdown" or "raw" (default: markdown)',
+      },
+    },
+    async (params) => {
+      try {
+        const result = await getDocsContent({
+          docs_id: params.docs_id as string,
+          paths: params.paths as string[],
+          format: params.format as "markdown" | "raw" | undefined,
         });
         return {
           content: [

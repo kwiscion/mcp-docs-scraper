@@ -52,7 +52,7 @@
   - Support subtree filtering
   - Handle missing cache gracefully
 
-- **[TODO]** Task 8: `get_docs_content` Tool
+- **[DONE]** Task 8: `get_docs_content` Tool
   - Implement content retrieval
   - Extract headings from content
   - Support multiple paths per request

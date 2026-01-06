@@ -70,16 +70,19 @@ mcp-docs-scraper/
 ### Version Notes & Breaking Changes
 
 **MiniSearch 7.x** (upgraded from 6.x):
+
 - Targets ES6 (ES2015+) - won't work in IE11 or earlier
 - Better TypeScript typing for `combineWith` search options
 - Fixed tokenizer regression with contiguous spaces/punctuation
 - No issues for Node.js environments (ES6 fully supported)
 
 **@types/node 22.x+** (upgraded from 20.x):
+
 - Provides types for latest Node.js LTS features
 - Recommended to match current Node.js runtime
 
 **MCP SDK 1.25.x**:
+
 - Latest stable version (v2 planned for Q1 2026)
 - v1.x will receive bug fixes and security updates for 6+ months after v2 ships
 
@@ -89,14 +92,16 @@ mcp-docs-scraper/
 
 ### Endpoints Used
 
-1. **Contents API** - Get file/folder listings
+1. **Git Trees API** - Get entire repo tree in one request
 
    ```
-   GET https://api.github.com/repos/{owner}/{repo}/contents/{path}
+   GET https://api.github.com/repos/{owner}/{repo}/git/trees/{branch}?recursive=1
    ```
 
-   - Returns: Array of file/folder objects with names, paths, sizes
-   - Rate limit: 60/hour unauthenticated
+   - Returns: Flat list of all files and folders with paths, types, sizes
+   - **Much more efficient**: 1-2 requests vs N requests (one per directory)
+   - Rate limit: 60/hour unauthenticated, 5000/hour authenticated
+   - Note: May be truncated for very large repos (100k+ items)
 
 2. **Raw Content** - Download actual files
    ```
@@ -108,14 +113,15 @@ mcp-docs-scraper/
 ### Rate Limit Handling
 
 - Track remaining requests via `X-RateLimit-Remaining` header
-- If < 5 remaining, pause and warn user
-- Never hit rate limit unexpectedly
+- If < 5 remaining, warn user
+- Git Trees API uses only 1-2 requests per repo, so rate limit is rarely an issue
+- Future: Support `GITHUB_TOKEN` env var for authenticated requests (5000/hour)
 
 ### Branch Detection
 
 1. Try `main` first (most common)
 2. Fallback to `master`
-3. Use GitHub API default branch if both fail
+3. Uses Git Trees API for branch detection (same endpoint)
 
 ---
 

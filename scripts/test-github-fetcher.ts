@@ -7,9 +7,13 @@ import {
   fetchRepoTree,
   getRateLimitStatus,
   getRateLimitInfo,
+  isAuthenticated,
 } from "../src/services/github-fetcher.js";
 
-function printTree(nodes: { name: string; path: string; type: string; children?: any[] }[], indent = 0): void {
+function printTree(
+  nodes: { name: string; path: string; type: string; children?: any[] }[],
+  indent = 0
+): void {
   const prefix = "  ".repeat(indent);
   for (const node of nodes) {
     const icon = node.type === "folder" ? "📁" : "📄";
@@ -22,6 +26,13 @@ function printTree(nodes: { name: string; path: string; type: string; children?:
 
 async function main() {
   console.log("🧪 Testing GitHub Fetcher - Tree Structure\n");
+
+  // Show auth status
+  if (isAuthenticated()) {
+    console.log("🔑 Using GITHUB_TOKEN (5000 requests/hour)\n");
+  } else {
+    console.log("⚠️  No GITHUB_TOKEN set (60 requests/hour limit)\n");
+  }
 
   try {
     // Test with a small, well-known repo
@@ -53,12 +64,15 @@ async function main() {
 
     const rateLimitInfo = getRateLimitInfo();
     if (rateLimitInfo) {
-      console.log(`   Remaining: ${rateLimitInfo.remaining}/${rateLimitInfo.limit}`);
-      console.log(`   Reset: ${new Date(rateLimitInfo.reset * 1000).toLocaleTimeString()}`);
+      console.log(
+        `   Remaining: ${rateLimitInfo.remaining}/${rateLimitInfo.limit}`
+      );
+      console.log(
+        `   Reset: ${new Date(rateLimitInfo.reset * 1000).toLocaleTimeString()}`
+      );
     }
 
     console.log("\n✅ GitHub fetcher test passed!");
-
   } catch (error) {
     console.error("\n❌ Test failed:", error);
     process.exit(1);
@@ -66,4 +80,3 @@ async function main() {
 }
 
 main();
-

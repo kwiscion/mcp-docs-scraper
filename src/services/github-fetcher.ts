@@ -4,16 +4,25 @@ import { githubRateLimit } from "../utils/rate-limit.js";
 const GITHUB_API_BASE = "https://api.github.com";
 
 /**
- * Response from GitHub Contents API for a single item.
+ * Response item from GitHub Git Trees API.
  */
-interface GitHubContentItem {
-  name: string;
+interface GitHubTreeItem {
   path: string;
-  type: "file" | "dir";
-  size: number;
+  mode: string;
+  type: "blob" | "tree";
+  sha: string;
+  size?: number;
+  url: string;
+}
+
+/**
+ * Response from GitHub Git Trees API.
+ */
+interface GitHubTreeResponse {
   sha: string;
   url: string;
-  download_url: string | null;
+  tree: GitHubTreeItem[];
+  truncated: boolean;
 }
 
 /**
@@ -30,6 +39,8 @@ export interface FetchTreeResult {
   fileCount: number;
   /** Total size of all files in bytes */
   totalSize: number;
+  /** Whether the tree was truncated due to size limits */
+  truncated: boolean;
 }
 
 /**
@@ -51,44 +62,83 @@ const DEFAULT_EXTENSIONS = [".md", ".mdx", ".markdown"];
 /**
  * Parses "owner/repo" format into separate parts.
  */
-export function parseRepoString(repoString: string): { owner: string; repo: string } {
+export function parseRepoString(repoString: string): {
+  owner: string;
+  repo: string;
+} {
   const parts = repoString.split("/");
   if (parts.length !== 2) {
-    throw new Error(`Invalid repo format: "${repoString}". Expected "owner/repo".`);
+    throw new Error(
+      `Invalid repo format: "${repoString}". Expected "owner/repo".`
+    );
   }
   return { owner: parts[0], repo: parts[1] };
 }
 
 /**
- * Detects the default branch for a repository.
- * Tries "main" first, then "master".
+ * Gets GitHub API headers, including auth token if available.
  */
-async function detectDefaultBranch(owner: string, repo: string): Promise<string> {
-  // Try main first
-  const mainUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/contents?ref=main`;
-  const mainResponse = await fetch(mainUrl, {
-    headers: {
-      Accept: "application/vnd.github.v3+json",
-      "User-Agent": "mcp-docs-scraper",
-    },
+function getGitHubHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github.v3+json",
+    "User-Agent": "mcp-docs-scraper",
+  };
+
+  // Use GITHUB_TOKEN if available (increases rate limit from 60 to 5000/hour)
+  const token = process.env.GITHUB_TOKEN;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return headers;
+}
+
+/**
+ * Checks if GitHub authentication is configured.
+ */
+export function isAuthenticated(): boolean {
+  return !!process.env.GITHUB_TOKEN;
+}
+
+/**
+ * Makes a GitHub API request with proper headers and rate limit tracking.
+ */
+async function githubFetch(url: string): Promise<Response> {
+  const response = await fetch(url, {
+    headers: getGitHubHeaders(),
   });
 
-  githubRateLimit.updateFromHeaders(mainResponse.headers);
+  githubRateLimit.updateFromHeaders(response.headers);
+
+  return response;
+}
+
+/**
+ * Detects the default branch for a repository using the Git Trees API.
+ * Tries "main" first, then "master".
+ */
+async function detectDefaultBranch(
+  owner: string,
+  repo: string
+): Promise<string> {
+  // Check rate limit before making requests
+  if (githubRateLimit.isExhausted()) {
+    throw new Error(
+      `GitHub API rate limit exhausted. ${githubRateLimit.getStatusMessage()}`
+    );
+  }
+
+  // Try main first using Git Trees API
+  const mainUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/trees/main`;
+  const mainResponse = await githubFetch(mainUrl);
 
   if (mainResponse.ok) {
     return "main";
   }
 
   // Try master
-  const masterUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/contents?ref=master`;
-  const masterResponse = await fetch(masterUrl, {
-    headers: {
-      Accept: "application/vnd.github.v3+json",
-      "User-Agent": "mcp-docs-scraper",
-    },
-  });
-
-  githubRateLimit.updateFromHeaders(masterResponse.headers);
+  const masterUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/trees/master`;
+  const masterResponse = await githubFetch(masterUrl);
 
   if (masterResponse.ok) {
     return "master";
@@ -96,49 +146,45 @@ async function detectDefaultBranch(owner: string, repo: string): Promise<string>
 
   throw new Error(
     `Could not detect default branch for ${owner}/${repo}. ` +
-    `Neither 'main' nor 'master' branches exist or repo is not accessible.`
+      `Neither 'main' nor 'master' branches exist or repo is not accessible.`
   );
 }
 
 /**
- * Fetches contents of a directory from GitHub.
+ * Fetches the entire tree from GitHub using the Git Trees API.
+ * This uses only 1 API request instead of 1 per directory.
  */
-async function fetchDirectoryContents(
+async function fetchGitTree(
   owner: string,
   repo: string,
-  path: string,
   branch: string
-): Promise<GitHubContentItem[]> {
-  const url = path
-    ? `${GITHUB_API_BASE}/repos/${owner}/${repo}/contents/${path}?ref=${branch}`
-    : `${GITHUB_API_BASE}/repos/${owner}/${repo}/contents?ref=${branch}`;
-
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/vnd.github.v3+json",
-      "User-Agent": "mcp-docs-scraper",
-    },
-  });
-
-  githubRateLimit.updateFromHeaders(response.headers);
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      return []; // Directory doesn't exist, return empty
-    }
+): Promise<GitHubTreeResponse> {
+  // Check rate limit before making request
+  if (githubRateLimit.isExhausted()) {
     throw new Error(
-      `GitHub API error: ${response.status} ${response.statusText} for path "${path}"`
+      `GitHub API rate limit exhausted. ${githubRateLimit.getStatusMessage()}`
     );
   }
 
-  const data = await response.json();
-
-  // Single file returns an object, directory returns array
-  if (!Array.isArray(data)) {
-    return [data as GitHubContentItem];
+  if (githubRateLimit.isLow()) {
+    console.error(`Warning: ${githubRateLimit.getStatusMessage()}`);
   }
 
-  return data as GitHubContentItem[];
+  const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
+  const response = await githubFetch(url);
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error(
+        `Repository or branch not found: ${owner}/${repo}@${branch}`
+      );
+    }
+    throw new Error(
+      `GitHub API error: ${response.status} ${response.statusText}`
+    );
+  }
+
+  return response.json() as Promise<GitHubTreeResponse>;
 }
 
 /**
@@ -151,89 +197,178 @@ function shouldIncludeFile(filename: string, extensions: string[]): boolean {
 }
 
 /**
- * Recursively builds a tree from GitHub contents.
+ * Gets the depth of a path (number of directory levels).
  */
-async function buildTree(
-  owner: string,
-  repo: string,
-  path: string,
-  branch: string,
+function getPathDepth(path: string): number {
+  if (!path) return 0;
+  return path.split("/").length;
+}
+
+/**
+ * Gets the file/folder name from a path.
+ */
+function getNameFromPath(path: string): string {
+  const parts = path.split("/");
+  return parts[parts.length - 1];
+}
+
+/**
+ * Gets the parent path from a path.
+ */
+function getParentPath(path: string): string {
+  const parts = path.split("/");
+  parts.pop();
+  return parts.join("/");
+}
+
+/**
+ * Converts a flat list of tree items into a hierarchical DocsTreeNode structure.
+ */
+function buildHierarchicalTree(
+  items: GitHubTreeItem[],
+  basePath: string,
   extensions: string[],
-  currentDepth: number,
   maxDepth: number
-): Promise<{ nodes: DocsTreeNode[]; fileCount: number; totalSize: number }> {
-  if (currentDepth > maxDepth) {
-    return { nodes: [], fileCount: 0, totalSize: 0 };
-  }
+): { tree: DocsTreeNode[]; fileCount: number; totalSize: number } {
+  // Filter items by base path and extensions
+  const filteredItems = items.filter((item) => {
+    // Must be under base path
+    if (
+      basePath &&
+      !item.path.startsWith(basePath + "/") &&
+      item.path !== basePath
+    ) {
+      return false;
+    }
 
-  // Check rate limit before making request
-  if (githubRateLimit.isExhausted()) {
-    throw new Error(
-      `GitHub API rate limit exhausted. ${githubRateLimit.getStatusMessage()}`
-    );
-  }
+    // Calculate relative depth
+    const relativePath = basePath
+      ? item.path.slice(basePath.length + 1)
+      : item.path;
+    const depth = getPathDepth(relativePath);
+    if (depth > maxDepth) {
+      return false;
+    }
 
-  if (githubRateLimit.isLow()) {
-    console.error(`Warning: ${githubRateLimit.getStatusMessage()}`);
-  }
+    // For files, check extension filter
+    if (item.type === "blob") {
+      return shouldIncludeFile(item.path, extensions);
+    }
 
-  const contents = await fetchDirectoryContents(owner, repo, path, branch);
-  const nodes: DocsTreeNode[] = [];
+    return true; // Include directories for now, we'll filter empty ones later
+  });
+
+  // Build a map of path -> node for quick lookups
+  const nodeMap = new Map<string, DocsTreeNode>();
   let fileCount = 0;
   let totalSize = 0;
 
-  for (const item of contents) {
-    if (item.type === "dir") {
-      // Recursively process directory
-      const subResult = await buildTree(
-        owner,
-        repo,
-        item.path,
-        branch,
-        extensions,
-        currentDepth + 1,
-        maxDepth
-      );
+  // First pass: create nodes for all matching files
+  for (const item of filteredItems) {
+    if (item.type === "blob") {
+      const node: DocsTreeNode = {
+        name: getNameFromPath(item.path),
+        path: item.path,
+        type: "file",
+        size_bytes: item.size,
+      };
+      nodeMap.set(item.path, node);
+      fileCount++;
+      totalSize += item.size || 0;
+    }
+  }
 
-      // Only include directory if it has matching files
-      if (subResult.nodes.length > 0) {
-        nodes.push({
-          name: item.name,
-          path: item.path,
-          type: "folder",
-          children: subResult.nodes,
-        });
-        fileCount += subResult.fileCount;
-        totalSize += subResult.totalSize;
-      }
-    } else if (item.type === "file") {
-      // Include file if it matches extension filter
-      if (shouldIncludeFile(item.name, extensions)) {
-        nodes.push({
-          name: item.name,
-          path: item.path,
-          type: "file",
-          size_bytes: item.size,
-        });
-        fileCount++;
-        totalSize += item.size;
+  // Second pass: create folder nodes for paths that have files under them
+  const folderPaths = new Set<string>();
+  for (const item of filteredItems) {
+    if (item.type === "blob") {
+      // Walk up the path and add all parent folders
+      let parentPath = getParentPath(item.path);
+      while (
+        parentPath &&
+        (!basePath ||
+          parentPath.startsWith(basePath) ||
+          parentPath === basePath)
+      ) {
+        // Don't add folders above basePath
+        if (basePath && parentPath.length < basePath.length) break;
+        folderPaths.add(parentPath);
+        parentPath = getParentPath(parentPath);
       }
     }
   }
 
-  // Sort: folders first, then files, both alphabetically
-  nodes.sort((a, b) => {
-    if (a.type !== b.type) {
-      return a.type === "folder" ? -1 : 1;
+  // Create folder nodes
+  for (const folderPath of folderPaths) {
+    if (!nodeMap.has(folderPath)) {
+      nodeMap.set(folderPath, {
+        name: getNameFromPath(folderPath),
+        path: folderPath,
+        type: "folder",
+        children: [],
+      });
     }
-    return a.name.localeCompare(b.name);
-  });
+  }
 
-  return { nodes, fileCount, totalSize };
+  // Third pass: build the hierarchy
+  for (const [path, node] of nodeMap) {
+    const parentPath = getParentPath(path);
+
+    // Skip if this is at the root level (relative to basePath)
+    if (!parentPath || (basePath && parentPath.length < basePath.length)) {
+      continue;
+    }
+
+    const parent = nodeMap.get(parentPath);
+    if (parent && parent.type === "folder") {
+      parent.children = parent.children || [];
+      parent.children.push(node);
+    }
+  }
+
+  // Collect root-level nodes
+  const rootNodes: DocsTreeNode[] = [];
+  for (const [path, node] of nodeMap) {
+    const parentPath = getParentPath(path);
+    const isRootLevel = basePath
+      ? path.startsWith(basePath + "/") &&
+        !parentPath.includes("/", basePath.length + 1) &&
+        parentPath === basePath
+      : !path.includes("/");
+
+    // For base path, check if direct child
+    if (basePath) {
+      const relativePath = path.slice(basePath.length + 1);
+      if (!relativePath.includes("/")) {
+        rootNodes.push(node);
+      }
+    } else if (!path.includes("/")) {
+      rootNodes.push(node);
+    }
+  }
+
+  // Sort all nodes: folders first, then files, both alphabetically
+  const sortNodes = (nodes: DocsTreeNode[]) => {
+    nodes.sort((a, b) => {
+      if (a.type !== b.type) {
+        return a.type === "folder" ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
+    for (const node of nodes) {
+      if (node.children) {
+        sortNodes(node.children);
+      }
+    }
+  };
+  sortNodes(rootNodes);
+
+  return { tree: rootNodes, fileCount, totalSize };
 }
 
 /**
  * Fetches the file tree from a GitHub repository.
+ * Uses the Git Trees API for efficiency (1 request for entire tree).
  *
  * @param repoString Repository in "owner/repo" format
  * @param options Fetch options
@@ -254,23 +389,30 @@ export async function fetchRepoTree(
   // Detect or use specified branch
   const branch = requestedBranch || (await detectDefaultBranch(owner, repo));
 
-  // Build the tree
-  const result = await buildTree(
-    owner,
-    repo,
+  // Fetch the entire tree in one API call
+  const gitTree = await fetchGitTree(owner, repo, branch);
+
+  if (gitTree.truncated) {
+    console.error(
+      "Warning: Repository tree was truncated due to size. Some files may be missing."
+    );
+  }
+
+  // Build hierarchical tree from flat list
+  const result = buildHierarchicalTree(
+    gitTree.tree,
     path,
-    branch,
     extensions,
-    0,
     maxDepth
   );
 
   return {
     repo: `${owner}/${repo}`,
     branch,
-    tree: result.nodes,
+    tree: result.tree,
     fileCount: result.fileCount,
     totalSize: result.totalSize,
+    truncated: gitTree.truncated,
   };
 }
 
@@ -287,4 +429,3 @@ export function getRateLimitStatus(): string {
 export function getRateLimitInfo() {
   return githubRateLimit.getInfo();
 }
-

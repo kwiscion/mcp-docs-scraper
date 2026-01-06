@@ -1,0 +1,74 @@
+---
+description: "Planning rule: write incremental, UI-verifiable implementation plans (README + numbered specs + slices + TASKS)."
+alwaysApply: false
+---
+
+### Planning rule
+
+Use this rule when asked to **create a development plan** or **write planning docs**.
+
+The goal is to avoid “big bang” implementations by producing plans that are:
+
+- **Incremental** (one slice per PR)
+- **UI-verifiable** after every slice
+- **Unambiguous** (clear contract, clear checkpoints)
+
+---
+
+### 1) Required document structure (in each plan folder)
+
+Every plan folder must contain:
+
+- **`README.md`** (the entry point)
+- **Numbered docs**:
+  - `01-ux-and-behavior.md`
+  - `02-implementation-notes.md` (engineering notes, pitfalls, file touchpoints)
+  - `03-incremental-implementation-slices.md` (execution order; source of truth)
+- **`TASKS.md`** (assignable backlog; **maps 1:1 to slices**)
+
+Optional (only if needed):
+
+- `future-limits-backlog.md` or similar “parking lot” doc for undecided follow-ups.
+
+---
+
+### 2) `README.md` requirements (must include)
+
+`README.md` must include, in this order:
+
+- **What we’re shipping** (1–3 bullets, user-visible)
+- **Repo status / what exists today** (grounded in current codebase)
+- **Locked product decisions** (explicit constraints)
+- **How to follow these docs** (“clear path”)
+  - read UX first
+  - use slices as the source of truth
+  - one slice per PR
+  - don’t proceed until checkpoint passes
+- **Document map** (links to each doc)
+
+---
+
+### 3) Slice format (in `03-incremental-implementation-slices.md`)
+
+Every slice must follow this template:
+
+- **Deliverable**: what changes from the user’s perspective (or visible internal milestone)
+- **Touchpoints**: the expected files/services (keep to ~2–6 focused files)
+- **Manual checkpoint**: step-by-step instructions to validate
+- **Rollback**: how to disable/revert (usually via feature flag)
+- **Notes**: optional (edge cases, “gotchas”)
+
+Non-negotiables:
+
+- One slice per PR
+- Every slice UI-verifiable
+- No unrelated refactors
+
+---
+
+### 5) `TASKS.md` rules
+
+- Each task maps **1:1** to a slice
+- Tasks are ordered; don’t skip ahead
+- Use status markers:
+  - **[TODO]**, **[WIP]**, **[DONE]**

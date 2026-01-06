@@ -8,11 +8,13 @@
 ## Phase 1: Foundation
 
 - **[TODO]** Task 1: Project Scaffolding & Hello World MCP Server
+
   - Create package.json, tsconfig.json, basic project structure
   - Implement minimal MCP server with `ping` tool
   - Verify MCP pipeline works end-to-end
 
 - **[TODO]** Task 2: Cache Manager Foundation
+
   - Implement cache-manager service
   - Create cache types and filesystem helpers
   - Test store/retrieve/list/clear operations
@@ -27,21 +29,25 @@
 ## Phase 2: GitHub Integration
 
 - **[TODO]** Task 4: GitHub Fetcher - Tree Structure
+
   - Implement GitHub API client
   - Fetch repo file tree via Contents API
   - Track rate limits
 
 - **[TODO]** Task 5: GitHub Fetcher - Content Download
+
   - Add raw file content fetching
   - Handle subdirectories
   - Graceful 404 handling
 
 - **[TODO]** Task 6: `index_docs` Tool (GitHub Only)
+
   - Implement index_docs for GitHub URLs
   - Store fetched content in cache
   - Return tree structure and stats
 
 - **[TODO]** Task 7: `get_docs_tree` Tool
+
   - Implement tree retrieval from cache
   - Support subtree filtering
   - Handle missing cache gracefully
@@ -56,6 +62,7 @@
 ## Phase 3: Search
 
 - **[TODO]** Task 9: Full-Text Search Index
+
   - Integrate MiniSearch
   - Build index during docs indexing
   - Store index in cache
@@ -70,11 +77,13 @@
 ## Phase 4: Web Scraping
 
 - **[TODO]** Task 11: Content Cleaner Service
+
   - Implement HTML→Markdown conversion
   - Configure Turndown rules
   - Strip navigation, preserve code
 
 - **[TODO]** Task 12: Web Scraper Service
+
   - Implement crawler with depth limit
   - Respect robots.txt
   - URL normalization
@@ -89,6 +98,7 @@
 ## Phase 5: Intelligence
 
 - **[TODO]** Task 14: GitHub Repo Detection
+
   - Implement detection logic
   - Create detect_github_repo tool
   - Test with various doc sites
@@ -103,6 +113,7 @@
 ## Phase 6: Polish
 
 - **[TODO]** Task 16: Error Handling & Edge Cases
+
   - Custom error types
   - Consistent error responses
   - Graceful degradation
@@ -111,18 +122,3 @@
   - Complete README with examples
   - MCP config examples
   - License and metadata
-
----
-
-## Progress Summary
-
-| Phase | Tasks | Done |
-|-------|-------|------|
-| Foundation | 3 | 0 |
-| GitHub Integration | 5 | 0 |
-| Search | 2 | 0 |
-| Web Scraping | 3 | 0 |
-| Intelligence | 2 | 0 |
-| Polish | 2 | 0 |
-| **Total** | **17** | **0** |
-

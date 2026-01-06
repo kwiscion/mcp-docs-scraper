@@ -42,7 +42,7 @@ Add to your Cursor MCP settings (`.cursor/mcp.json`):
 
 ### Claude Desktop
 
-Add to your Claude Desktop config:
+Add to your Claude Desktop config (`claude_desktop_config.json`):
 
 ```json
 {
@@ -57,15 +57,16 @@ Add to your Claude Desktop config:
 
 ## Available Tools
 
-| Tool                 | Description                                      |
-| -------------------- | ------------------------------------------------ |
-| `index_docs`         | Fetch and cache documentation from GitHub or web |
-| `get_docs_tree`      | Get hierarchical structure of cached docs        |
-| `get_docs_content`   | Retrieve content of specific doc files           |
-| `search_docs`        | Full-text search within cached docs              |
-| `detect_github_repo` | Find GitHub repo from a docs website URL         |
-| `list_cached_docs`   | List all cached documentation                    |
-| `clear_cache`        | Remove cached documentation                      |
+| Tool                 | Description                                      | Status       |
+| -------------------- | ------------------------------------------------ | ------------ |
+| `ping`               | Health check - returns pong                      | ✅ Available |
+| `index_docs`         | Fetch and cache documentation from GitHub or web | 🚧 Planned   |
+| `get_docs_tree`      | Get hierarchical structure of cached docs        | 🚧 Planned   |
+| `get_docs_content`   | Retrieve content of specific doc files           | 🚧 Planned   |
+| `search_docs`        | Full-text search within cached docs              | 🚧 Planned   |
+| `detect_github_repo` | Find GitHub repo from a docs website URL         | 🚧 Planned   |
+| `list_cached_docs`   | List all cached documentation                    | 🚧 Planned   |
+| `clear_cache`        | Remove cached documentation                      | 🚧 Planned   |
 
 ## Example Usage
 
@@ -88,6 +89,27 @@ Agent: "I need to understand Zod's custom validation"
 ## Development
 
 See [plan/README.md](./plan/README.md) for development documentation and implementation plan.
+
+### Prerequisites
+
+- Node.js 22+
+- pnpm
+
+### Development Commands
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build TypeScript
+pnpm build
+
+# Run the server
+pnpm start
+
+# Development mode (with tsx)
+pnpm dev
+```
 
 ## License
 

@@ -7,7 +7,7 @@
 
 ## Phase 1: Foundation
 
-- **[TODO]** Task 1: Project Scaffolding & Hello World MCP Server
+- **[DONE]** Task 1: Project Scaffolding & Hello World MCP Server
 
   - Create package.json, tsconfig.json, basic project structure
   - Implement minimal MCP server with `ping` tool

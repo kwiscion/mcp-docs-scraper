@@ -1,5 +1,5 @@
 /**
- * index_docs tool - Fetches and caches documentation from GitHub repositories.
+ * index_docs tool - Fetches and caches documentation from GitHub repositories or websites.
  */
 
 import type { DocsTreeNode } from "../types/cache.js";
@@ -13,6 +13,9 @@ import {
   SearchIndex,
   createIndexableDocument,
 } from "../services/search-index.js";
+import { crawlWebsite } from "../services/web-scraper.js";
+import { cleanHtml } from "../services/content-cleaner.js";
+import { extractDomain, normalizeUrl } from "../utils/url.js";
 
 /**
  * Input parameters for index_docs tool.
@@ -95,7 +98,10 @@ export function parseGitHubUrl(url: string): {
     let path: string | undefined;
 
     // Check for /tree/branch/path or /blob/branch/path
-    if (pathParts.length > 2 && (pathParts[2] === "tree" || pathParts[2] === "blob")) {
+    if (
+      pathParts.length > 2 &&
+      (pathParts[2] === "tree" || pathParts[2] === "blob")
+    ) {
       branch = pathParts[3];
       if (pathParts.length > 4) {
         path = pathParts.slice(4).join("/");
@@ -198,7 +204,12 @@ async function indexFromGitHub(
 
       if (content) {
         // Store content in cache
-        await cacheManager.storeContent("github", cacheId, filePath, content.content);
+        await cacheManager.storeContent(
+          "github",
+          cacheId,
+          filePath,
+          content.content
+        );
         totalSize += content.size;
         downloadedCount++;
 
@@ -242,11 +253,190 @@ async function indexFromGitHub(
 }
 
 /**
- * Main index_docs implementation.
- * Currently only supports GitHub URLs.
+ * Generates a cache ID from a URL for scraped content.
  */
-export async function indexDocs(input: IndexDocsInput): Promise<IndexDocsOutput> {
-  const { url, type = "auto", force_refresh = false } = input;
+function generateScrapedCacheId(url: string): string {
+  const domain = extractDomain(url);
+  if (!domain) {
+    throw new Error(`Invalid URL: ${url}`);
+  }
+
+  // Clean up domain for use as ID
+  return domain
+    .replace(/^www\./, "")
+    .replace(/\./g, "_")
+    .replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
+/**
+ * Indexes documentation from a website via scraping.
+ */
+async function indexFromScraping(
+  url: string,
+  options: {
+    depth?: number;
+    forceRefresh?: boolean;
+    includePatterns?: string[];
+    excludePatterns?: string[];
+  } = {}
+): Promise<IndexDocsOutput> {
+  const normalizedUrl = normalizeUrl(url);
+  const cacheId = generateScrapedCacheId(normalizedUrl);
+
+  // Check if already cached (unless force refresh)
+  if (!options.forceRefresh) {
+    const existing = await cacheManager.getMeta("scraped", cacheId);
+    if (existing && !cacheManager.isExpired(existing)) {
+      // Return cached data
+      return {
+        id: existing.id,
+        source: "scraped",
+        base_url: existing.base_url,
+        tree: existing.tree,
+        stats: {
+          pages: existing.page_count,
+          total_size_bytes: existing.total_size_bytes,
+          indexed_at: existing.indexed_at,
+        },
+      };
+    }
+  }
+
+  // Initialize cache
+  await cacheManager.initialize();
+
+  // Crawl the website
+  console.error(`[index_docs] Starting crawl of ${normalizedUrl}...`);
+  const crawlResult = await crawlWebsite(normalizedUrl, {
+    maxDepth: options.depth ?? 2,
+    maxPages: 100,
+    requestDelay: 500,
+  });
+
+  if (crawlResult.pages.length === 0) {
+    throw new Error(
+      `No pages found at ${normalizedUrl}. The site may block crawlers or have no content.`
+    );
+  }
+
+  console.error(
+    `[index_docs] Crawled ${crawlResult.pages.length} pages, converting to markdown...`
+  );
+
+  // Process pages: clean HTML to markdown and store
+  let totalSize = 0;
+  let processedCount = 0;
+  const searchIndex = new SearchIndex();
+  const treeNodes: DocsTreeNode[] = [];
+
+  for (const page of crawlResult.pages) {
+    try {
+      // Clean HTML to markdown
+      const cleaned = cleanHtml(page.html, {
+        baseUrl: page.url,
+        extractMainContent: true,
+      });
+
+      // Skip pages with very little content
+      if (cleaned.markdown.trim().length < 100) {
+        console.error(
+          `[index_docs] Skipping ${page.filename} - too little content`
+        );
+        continue;
+      }
+
+      // Add title as H1 if not present and we have a title
+      let markdown = cleaned.markdown;
+      if (cleaned.title && !markdown.startsWith("# ")) {
+        markdown = `# ${cleaned.title}\n\n${markdown}`;
+      }
+
+      // Store content in cache
+      await cacheManager.storeContent(
+        "scraped",
+        cacheId,
+        page.filename,
+        markdown
+      );
+
+      const size = Buffer.byteLength(markdown, "utf8");
+      totalSize += size;
+      processedCount++;
+
+      // Add to tree
+      treeNodes.push({
+        name: page.filename,
+        path: page.filename,
+        type: "file",
+        size_bytes: size,
+      });
+
+      // Add to search index
+      const indexDoc = createIndexableDocument(page.filename, markdown);
+      searchIndex.addDocument(indexDoc);
+    } catch (error) {
+      console.error(`[index_docs] Failed to process ${page.url}:`, error);
+    }
+  }
+
+  if (processedCount === 0) {
+    throw new Error(
+      `No pages could be processed from ${normalizedUrl}. Content may be too short or invalid.`
+    );
+  }
+
+  // Sort tree nodes
+  treeNodes.sort((a, b) => a.name.localeCompare(b.name));
+
+  // Store search index
+  await cacheManager.storeSearchIndex("scraped", cacheId, searchIndex.toJSON());
+
+  // Store metadata
+  const indexedAt = new Date().toISOString();
+  await cacheManager.storeMeta({
+    id: cacheId,
+    source: "scraped",
+    base_url: normalizedUrl,
+    indexed_at: indexedAt,
+    page_count: processedCount,
+    total_size_bytes: totalSize,
+    tree: treeNodes,
+  });
+
+  console.error(
+    `[index_docs] Indexed ${processedCount} pages (${(totalSize / 1024).toFixed(
+      1
+    )} KB)`
+  );
+
+  return {
+    id: cacheId,
+    source: "scraped",
+    base_url: normalizedUrl,
+    tree: treeNodes,
+    stats: {
+      pages: processedCount,
+      total_size_bytes: totalSize,
+      indexed_at: indexedAt,
+    },
+  };
+}
+
+/**
+ * Main index_docs implementation.
+ * Supports GitHub URLs and website scraping.
+ */
+export async function indexDocs(
+  input: IndexDocsInput
+): Promise<IndexDocsOutput> {
+  const {
+    url,
+    type = "auto",
+    depth,
+    force_refresh = false,
+    include_patterns,
+    exclude_patterns,
+  } = input;
 
   // Validate required parameters
   if (!url) {
@@ -256,7 +446,8 @@ export async function indexDocs(input: IndexDocsInput): Promise<IndexDocsOutput>
   // Parse URL to determine source
   const githubInfo = parseGitHubUrl(url);
 
-  if (type === "github" || (type === "auto" && githubInfo)) {
+  // Handle explicit type requests
+  if (type === "github") {
     if (!githubInfo) {
       throw new Error(
         `Invalid GitHub URL: "${url}". Expected format: https://github.com/owner/repo`
@@ -271,16 +462,35 @@ export async function indexDocs(input: IndexDocsInput): Promise<IndexDocsOutput>
   }
 
   if (type === "scrape") {
-    // Scraping not yet implemented
-    throw new Error(
-      "Web scraping is not yet implemented. Please use a GitHub URL instead."
-    );
+    return indexFromScraping(url, {
+      depth,
+      forceRefresh: force_refresh,
+      includePatterns: include_patterns,
+      excludePatterns: exclude_patterns,
+    });
   }
 
-  // Auto mode but couldn't detect GitHub
+  // Auto mode: prefer GitHub if detected, otherwise scrape
+  if (type === "auto") {
+    if (githubInfo) {
+      return indexFromGitHub(githubInfo.owner, githubInfo.repo, {
+        branch: githubInfo.branch,
+        path: githubInfo.path,
+        forceRefresh: force_refresh,
+      });
+    }
+
+    // Not a GitHub URL - use scraping
+    return indexFromScraping(url, {
+      depth,
+      forceRefresh: force_refresh,
+      includePatterns: include_patterns,
+      excludePatterns: exclude_patterns,
+    });
+  }
+
+  // Should not reach here
   throw new Error(
-    `Could not determine documentation source for URL: "${url}". ` +
-      `Please provide a GitHub repository URL (e.g., https://github.com/owner/repo).`
+    `Invalid type: "${type}". Expected "github", "scrape", or "auto".`
   );
 }
-

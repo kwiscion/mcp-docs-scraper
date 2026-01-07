@@ -88,7 +88,7 @@
   - Respect robots.txt
   - URL normalization
 
-- **[TODO]** Task 13: `index_docs` Tool - Scraping Support
+- **[DONE]** Task 13: `index_docs` Tool - Scraping Support
   - Add scraping path to index_docs
   - Integrate scraper and cleaner
   - Test full scrape→cache flow

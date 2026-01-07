@@ -103,7 +103,7 @@
   - Create detect_github_repo tool
   - Test with various doc sites
 
-- **[TODO]** Task 15: Auto-Detection in `index_docs`
+- **[DONE]** Task 15: Auto-Detection in `index_docs`
   - Integrate detector into index_docs
   - Auto-select best source
   - Fallback chain: GitHub → scrape

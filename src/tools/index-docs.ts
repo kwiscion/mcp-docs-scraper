@@ -16,6 +16,7 @@ import {
 import { crawlWebsite } from "../services/web-scraper.js";
 import { cleanHtml } from "../services/content-cleaner.js";
 import { extractDomain, normalizeUrl } from "../utils/url.js";
+import { detectGitHubRepo } from "../services/github-detector.js";
 
 /**
  * Input parameters for index_docs tool.
@@ -55,6 +56,8 @@ export interface IndexDocsOutput {
     total_size_bytes: number;
     indexed_at: string;
   };
+  /** How the source was detected (for auto mode) */
+  detection_method?: string;
 }
 
 /**
@@ -472,21 +475,60 @@ export async function indexDocs(
 
   // Auto mode: prefer GitHub if detected, otherwise scrape
   if (type === "auto") {
+    // If URL is already a GitHub URL, use it directly
     if (githubInfo) {
-      return indexFromGitHub(githubInfo.owner, githubInfo.repo, {
+      console.error(`[index_docs] Auto-detected: direct GitHub URL`);
+      const result = await indexFromGitHub(githubInfo.owner, githubInfo.repo, {
         branch: githubInfo.branch,
         path: githubInfo.path,
         forceRefresh: force_refresh,
       });
+      return { ...result, detection_method: "direct_github_url" };
     }
 
-    // Not a GitHub URL - use scraping
-    return indexFromScraping(url, {
+    // Try to detect GitHub repo from the docs site
+    console.error(`[index_docs] Auto-detecting GitHub repo from ${url}...`);
+    const detection = await detectGitHubRepo(url);
+
+    if (detection.found && detection.repo && detection.confidence !== "low") {
+      console.error(
+        `[index_docs] Found GitHub repo: ${detection.repo} (${detection.confidence} confidence via ${detection.detection_method})`
+      );
+
+      // Parse the detected repo
+      const [owner, repo] = detection.repo.split("/");
+      if (owner && repo) {
+        try {
+          const result = await indexFromGitHub(owner, repo, {
+            path: detection.docs_path,
+            forceRefresh: force_refresh,
+          });
+          return {
+            ...result,
+            detection_method: `auto_github_${detection.detection_method}`,
+          };
+        } catch (error) {
+          // GitHub fetch failed, fall back to scraping
+          console.error(
+            `[index_docs] GitHub fetch failed, falling back to scraping:`,
+            error instanceof Error ? error.message : error
+          );
+        }
+      }
+    } else {
+      console.error(
+        `[index_docs] No GitHub repo detected (${detection.detection_method}), using scraping`
+      );
+    }
+
+    // Fall back to scraping
+    const result = await indexFromScraping(url, {
       depth,
       forceRefresh: force_refresh,
       includePatterns: include_patterns,
       excludePatterns: exclude_patterns,
     });
+    return { ...result, detection_method: "scraping_fallback" };
   }
 
   // Should not reach here

@@ -90,6 +90,15 @@ export async function getDocsContent(
 ): Promise<GetDocsContentOutput> {
   const { docs_id, paths, format = "markdown" } = input;
 
+  // Validate required parameters
+  if (!docs_id) {
+    throw new Error("Missing required parameter: docs_id");
+  }
+
+  if (!paths || !Array.isArray(paths) || paths.length === 0) {
+    throw new Error("Missing required parameter: paths (must be a non-empty array of file paths)");
+  }
+
   // Find the cached docs entry to determine source type
   const meta = await cacheManager.findById(docs_id);
 

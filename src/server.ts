@@ -1,6 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { listCachedDocs, clearCache, indexDocs, getDocsTree, getDocsContent } from "./tools/index.js";
+import { z } from "zod";
+import {
+  listCachedDocs,
+  clearCache,
+  indexDocs,
+  getDocsTree,
+  getDocsContent,
+} from "./tools/index.js";
 
 export interface DocsScraperServer {
   run(): Promise<void>;
@@ -14,22 +21,33 @@ export function createServer(): DocsScraperServer {
   });
 
   // Register the ping tool - a simple health check
-  server.tool("ping", "Health check tool - returns pong", {}, async () => {
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify({ message: "pong" }, null, 2),
-        },
-      ],
-    };
-  });
+  server.registerTool(
+    "ping",
+    {
+      title: "Ping",
+      description: "Health check tool - returns pong",
+      inputSchema: {},
+    },
+    async () => {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ message: "pong" }, null, 2),
+          },
+        ],
+      };
+    }
+  );
 
   // Register list_cached_docs tool
-  server.tool(
+  server.registerTool(
     "list_cached_docs",
-    "List all documentation sets in the local cache",
-    {},
+    {
+      title: "List Cached Docs",
+      description: "List all documentation sets in the local cache",
+      inputSchema: {},
+    },
     async () => {
       const result = await listCachedDocs();
       return {
@@ -44,24 +62,25 @@ export function createServer(): DocsScraperServer {
   );
 
   // Register clear_cache tool
-  server.tool(
+  server.registerTool(
     "clear_cache",
-    "Remove cached documentation. Pass docs_id to clear specific entry, or all:true to clear everything.",
     {
-      docs_id: {
-        type: "string",
-        description: "Specific docs ID to clear (optional)",
-      },
-      all: {
-        type: "boolean",
-        description: "Clear all cached docs (default: false)",
+      title: "Clear Cache",
+      description:
+        "Remove cached documentation. Pass docs_id to clear specific entry, or all:true to clear everything.",
+      inputSchema: {
+        docs_id: z
+          .string()
+          .optional()
+          .describe("Specific docs ID to clear (optional)"),
+        all: z
+          .boolean()
+          .optional()
+          .describe("Clear all cached docs (default: false)"),
       },
     },
-    async (params) => {
-      const result = await clearCache({
-        docs_id: params.docs_id as string | undefined,
-        all: params.all as boolean | undefined,
-      });
+    async ({ docs_id, all }) => {
+      const result = await clearCache({ docs_id, all });
       return {
         content: [
           {
@@ -74,32 +93,33 @@ export function createServer(): DocsScraperServer {
   );
 
   // Register index_docs tool
-  server.tool(
+  server.registerTool(
     "index_docs",
-    "Fetch and cache documentation from a GitHub repository. Downloads markdown files and stores them locally for fast access.",
     {
-      url: {
-        type: "string",
-        description:
-          "GitHub repository URL (e.g., https://github.com/owner/repo)",
-      },
-      type: {
-        type: "string",
-        description:
-          'Source type: "github", "scrape", or "auto" (default: auto)',
-      },
-      force_refresh: {
-        type: "boolean",
-        description: "Ignore cache and re-fetch (default: false)",
+      title: "Index Docs",
+      description:
+        "Fetch and cache documentation from a GitHub repository. Downloads markdown files and stores them locally for fast access.",
+      inputSchema: {
+        url: z
+          .string()
+          .describe(
+            "GitHub repository URL (e.g., https://github.com/owner/repo)"
+          ),
+        type: z
+          .enum(["github", "scrape", "auto"])
+          .optional()
+          .describe(
+            'Source type: "github", "scrape", or "auto" (default: auto)'
+          ),
+        force_refresh: z
+          .boolean()
+          .optional()
+          .describe("Ignore cache and re-fetch (default: false)"),
       },
     },
-    async (params) => {
+    async ({ url, type, force_refresh }) => {
       try {
-        const result = await indexDocs({
-          url: params.url as string,
-          type: params.type as "github" | "scrape" | "auto" | undefined,
-          force_refresh: params.force_refresh as boolean | undefined,
-        });
+        const result = await indexDocs({ url, type, force_refresh });
         return {
           content: [
             {
@@ -125,30 +145,29 @@ export function createServer(): DocsScraperServer {
   );
 
   // Register get_docs_tree tool
-  server.tool(
+  server.registerTool(
     "get_docs_tree",
-    "Get the hierarchical file tree for cached documentation. Use after index_docs to browse available files.",
     {
-      docs_id: {
-        type: "string",
-        description: "The docs ID from index_docs response (required)",
-      },
-      path: {
-        type: "string",
-        description: "Subtree path to filter (optional, default: root)",
-      },
-      max_depth: {
-        type: "number",
-        description: "Maximum depth to return (optional, default: unlimited)",
+      title: "Get Docs Tree",
+      description:
+        "Get the hierarchical file tree for cached documentation. Use after index_docs to browse available files.",
+      inputSchema: {
+        docs_id: z
+          .string()
+          .describe("The docs ID from index_docs response (required)"),
+        path: z
+          .string()
+          .optional()
+          .describe("Subtree path to filter (optional, default: root)"),
+        max_depth: z
+          .number()
+          .optional()
+          .describe("Maximum depth to return (optional, default: unlimited)"),
       },
     },
-    async (params) => {
+    async ({ docs_id, path, max_depth }) => {
       try {
-        const result = await getDocsTree({
-          docs_id: params.docs_id as string,
-          path: params.path as string | undefined,
-          max_depth: params.max_depth as number | undefined,
-        });
+        const result = await getDocsTree({ docs_id, path, max_depth });
         return {
           content: [
             {
@@ -174,31 +193,28 @@ export function createServer(): DocsScraperServer {
   );
 
   // Register get_docs_content tool
-  server.tool(
+  server.registerTool(
     "get_docs_content",
-    "Retrieve actual content of specific doc files from cache. Returns content with extracted headings for navigation.",
     {
-      docs_id: {
-        type: "string",
-        description: "The docs ID from index_docs response (required)",
-      },
-      paths: {
-        type: "array",
-        items: { type: "string" },
-        description: "Array of file paths to fetch (required)",
-      },
-      format: {
-        type: "string",
-        description: 'Output format: "markdown" or "raw" (default: markdown)',
+      title: "Get Docs Content",
+      description:
+        "Retrieve actual content of specific doc files from cache. Returns content with extracted headings for navigation.",
+      inputSchema: {
+        docs_id: z
+          .string()
+          .describe("The docs ID from index_docs response (required)"),
+        paths: z
+          .array(z.string())
+          .describe("Array of file paths to fetch (required)"),
+        format: z
+          .enum(["markdown", "raw"])
+          .optional()
+          .describe('Output format: "markdown" or "raw" (default: markdown)'),
       },
     },
-    async (params) => {
+    async ({ docs_id, paths, format }) => {
       try {
-        const result = await getDocsContent({
-          docs_id: params.docs_id as string,
-          paths: params.paths as string[],
-          format: params.format as "markdown" | "raw" | undefined,
-        });
+        const result = await getDocsContent({ docs_id, paths, format });
         return {
           content: [
             {

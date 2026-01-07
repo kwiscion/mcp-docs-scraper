@@ -235,6 +235,11 @@ async function indexFromGitHub(
 export async function indexDocs(input: IndexDocsInput): Promise<IndexDocsOutput> {
   const { url, type = "auto", force_refresh = false } = input;
 
+  // Validate required parameters
+  if (!url) {
+    throw new Error("Missing required parameter: url");
+  }
+
   // Parse URL to determine source
   const githubInfo = parseGitHubUrl(url);
 

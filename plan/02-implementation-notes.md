@@ -45,6 +45,7 @@ mcp-docs-scraper/
 {
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.0",
+    "zod": "^4.3.5",
     "cheerio": "^1.1.2",
     "turndown": "^7.2.0",
     "minisearch": "^7.0.0"
@@ -63,6 +64,7 @@ mcp-docs-scraper/
 | Library                     | Purpose                      | Alternatives Considered                           |
 | --------------------------- | ---------------------------- | ------------------------------------------------- |
 | `@modelcontextprotocol/sdk` | Official MCP SDK             | None (required)                                   |
+| `zod`                       | Schema validation for tools  | None (recommended by MCP SDK)                     |
 | `cheerio`                   | HTML parsing (server-side)   | jsdom (heavier), htmlparser2 (lower-level)        |
 | `turndown`                  | HTML→Markdown                | unified/rehype (more complex), custom (more work) |
 | `minisearch`                | Lightweight full-text search | lunr (larger), flexsearch (similar)               |
@@ -85,6 +87,91 @@ mcp-docs-scraper/
 
 - Latest stable version (v2 planned for Q1 2026)
 - v1.x will receive bug fixes and security updates for 6+ months after v2 ships
+
+---
+
+## MCP Tool Registration
+
+The MCP TypeScript SDK uses `registerTool` with Zod schemas for type-safe tool registration.
+
+### Modern Pattern (Recommended)
+
+```typescript
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+
+const server = new McpServer({
+  name: "my-server",
+  version: "1.0.0",
+});
+
+// Register a tool with Zod schemas
+server.registerTool(
+  "calculate-bmi",
+  {
+    title: "BMI Calculator",
+    description: "Calculate Body Mass Index from weight and height",
+    inputSchema: {
+      weightKg: z.number().describe("Weight in kilograms"),
+      heightM: z.number().describe("Height in meters"),
+    },
+  },
+  async ({ weightKg, heightM }) => {
+    const bmi = weightKg / (heightM * heightM);
+    return {
+      content: [{ type: "text", text: JSON.stringify({ bmi }, null, 2) }],
+    };
+  }
+);
+```
+
+### Key Features
+
+| Feature             | Description                                           |
+| ------------------- | ----------------------------------------------------- |
+| `title`             | Human-readable display name for the tool              |
+| `description`       | What the tool does (shown to LLMs)                    |
+| `inputSchema`       | Zod schema object for input validation                |
+| Destructured params | Handler receives typed, validated parameters directly |
+
+### Benefits Over Legacy Pattern
+
+1. **Type Safety**: Zod provides runtime validation and TypeScript inference
+2. **Better Errors**: Invalid inputs are caught with descriptive error messages
+3. **Self-Documenting**: Schema descriptions become part of the tool definition
+4. **Cleaner Code**: Destructured params eliminate manual type casting
+
+### Optional Output Schema
+
+For structured output, add `outputSchema`:
+
+```typescript
+server.registerTool(
+  "get-user",
+  {
+    title: "Get User",
+    description: "Fetch user by ID",
+    inputSchema: { userId: z.string() },
+    outputSchema: {
+      name: z.string(),
+      email: z.string().email(),
+    },
+  },
+  async ({ userId }) => {
+    const user = await fetchUser(userId);
+    return {
+      content: [{ type: "text", text: JSON.stringify(user) }],
+      structuredContent: user, // Type-checked against outputSchema
+    };
+  }
+);
+```
+
+### Reference
+
+See the official MCP TypeScript SDK documentation:
+
+- [Server Documentation](https://github.com/modelcontextprotocol/typescript-sdk/blob/main/docs/server.md)
 
 ---
 

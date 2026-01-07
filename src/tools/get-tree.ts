@@ -101,6 +101,11 @@ function limitDepth(tree: DocsTreeNode[], maxDepth: number, currentDepth = 1): D
 export async function getDocsTree(input: GetDocsTreeInput): Promise<GetDocsTreeOutput> {
   const { docs_id, path = "", max_depth } = input;
 
+  // Validate required parameters
+  if (!docs_id) {
+    throw new Error("Missing required parameter: docs_id");
+  }
+
   // Find the cached docs entry
   const meta = await cacheManager.findById(docs_id);
 

@@ -82,7 +82,7 @@
   - Configure Turndown rules
   - Strip navigation, preserve code
 
-- **[TODO]** Task 12: Web Scraper Service
+- **[DONE]** Task 12: Web Scraper Service
 
   - Implement crawler with depth limit
   - Respect robots.txt

@@ -23,26 +23,6 @@ export function createServer(): DocsScraperServer {
     version: "0.1.0",
   });
 
-  // Register the ping tool - a simple health check
-  server.registerTool(
-    "ping",
-    {
-      title: "Ping",
-      description: "Health check tool - returns pong",
-      inputSchema: {},
-    },
-    async () => {
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({ message: "pong" }, null, 2),
-          },
-        ],
-      };
-    }
-  );
-
   // Register list_cached_docs tool
   server.registerTool(
     "list_cached_docs",

@@ -94,7 +94,6 @@ The agent will automatically use the tools to index, search, and retrieve exactl
 | `detect_github_repo` | Find GitHub repo from a docs website URL                 |
 | `list_cached_docs`   | List all cached documentation                            |
 | `clear_cache`        | Remove cached documentation                              |
-| `ping`               | Health check                                             |
 
 ## How Agents Use This
 

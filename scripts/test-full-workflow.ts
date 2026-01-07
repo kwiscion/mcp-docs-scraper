@@ -12,7 +12,7 @@ import { clearCache } from "../src/tools/clear-cache.js";
 
 async function testFullWorkflow() {
   console.log("=== Task 17: Full Workflow Verification ===\n");
-  
+
   const testUrl = "https://github.com/colinhacks/zod";
   let docsId: string;
 
@@ -24,7 +24,9 @@ async function testFullWorkflow() {
     console.log(`   ✅ Indexed: ${docsId}`);
     console.log(`   Source: ${indexResult.source}`);
     console.log(`   Pages: ${indexResult.stats.pages}`);
-    console.log(`   Size: ${(indexResult.stats.total_size_bytes / 1024).toFixed(1)} KB`);
+    console.log(
+      `   Size: ${(indexResult.stats.total_size_bytes / 1024).toFixed(1)} KB`
+    );
   } catch (error) {
     console.error("   ❌ Failed to index:", error);
     process.exit(1);
@@ -45,12 +47,14 @@ async function testFullWorkflow() {
   // Step 3: Search documentation
   console.log("\n3. Search documentation...");
   try {
-    const searchResult = await searchDocs({ 
-      docs_id: docsId, 
+    const searchResult = await searchDocs({
+      docs_id: docsId,
       query: "transform",
-      limit: 5
+      limit: 5,
     });
-    console.log(`   ✅ Search completed: ${searchResult.results.length} results`);
+    console.log(
+      `   ✅ Search completed: ${searchResult.results.length} results`
+    );
     if (searchResult.results.length > 0) {
       console.log(`   Top result: ${searchResult.results[0].path}`);
       console.log(`   Score: ${searchResult.results[0].score.toFixed(2)}`);
@@ -63,9 +67,9 @@ async function testFullWorkflow() {
   // Step 4: Get content
   console.log("\n4. Get specific file content...");
   try {
-    const contentResult = await getDocsContent({ 
-      docs_id: docsId, 
-      paths: ["README.md"] 
+    const contentResult = await getDocsContent({
+      docs_id: docsId,
+      paths: ["README.md"],
     });
     const readmeContent = contentResult.contents["README.md"];
     if (readmeContent) {
@@ -117,4 +121,3 @@ function countFiles(tree: any[]): number {
 }
 
 testFullWorkflow().catch(console.error);
-

@@ -26,27 +26,37 @@ pnpm build
 
 ## Configuration
 
-### Claude Desktop
+### Using npx (Recommended)
 
-Add to your Claude Desktop config file:
-
-**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`  
-**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+**Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS, `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
 
 ```json
 {
   "mcpServers": {
     "docs-scraper": {
-      "command": "node",
-      "args": ["/absolute/path/to/mcp-docs-scraper/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "mcp-docs-scraper"]
     }
   }
 }
 ```
 
-### Cursor
+**Cursor** (`.cursor/mcp.json`):
 
-Add to your Cursor MCP settings (`.cursor/mcp.json` in your project or global config):
+```json
+{
+  "mcpServers": {
+    "docs-scraper": {
+      "command": "npx",
+      "args": ["-y", "mcp-docs-scraper"]
+    }
+  }
+}
+```
+
+### Using Local Installation
+
+If you've cloned and built the repo locally:
 
 ```json
 {
@@ -67,8 +77,8 @@ For higher API rate limits (5000/hour vs 60/hour), set a GitHub token:
 {
   "mcpServers": {
     "docs-scraper": {
-      "command": "node",
-      "args": ["/absolute/path/to/mcp-docs-scraper/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "mcp-docs-scraper"],
       "env": {
         "GITHUB_TOKEN": "ghp_your_token_here"
       }

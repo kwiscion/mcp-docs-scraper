@@ -4,6 +4,7 @@
 
 import type { DocsTreeNode } from "../types/cache.js";
 import { cacheManager } from "../services/cache-manager.js";
+import { CacheNotFoundError, ValidationError } from "../types/errors.js";
 
 /**
  * Input parameters for get_docs_tree tool.
@@ -103,16 +104,14 @@ export async function getDocsTree(input: GetDocsTreeInput): Promise<GetDocsTreeO
 
   // Validate required parameters
   if (!docs_id) {
-    throw new Error("Missing required parameter: docs_id");
+    throw new ValidationError("Missing required parameter: docs_id", "docs_id");
   }
 
   // Find the cached docs entry
   const meta = await cacheManager.findById(docs_id);
 
   if (!meta) {
-    throw new Error(
-      `Documentation not found in cache: "${docs_id}". Run index_docs first.`
-    );
+    throw new CacheNotFoundError(docs_id);
   }
 
   // Get the tree (or subtree if path specified)

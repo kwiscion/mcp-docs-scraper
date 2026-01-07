@@ -1,5 +1,11 @@
 import type { DocsTreeNode } from "../types/index.js";
 import { githubRateLimit } from "../utils/rate-limit.js";
+import {
+  GitHubRateLimitError,
+  GitHubNotFoundError,
+  GitHubAccessDeniedError,
+  NetworkError,
+} from "../types/errors.js";
 
 const GITHUB_API_BASE = "https://api.github.com";
 
@@ -121,33 +127,49 @@ async function detectDefaultBranch(
   owner: string,
   repo: string
 ): Promise<string> {
+  const repoString = `${owner}/${repo}`;
+
   // Check rate limit before making requests
   if (githubRateLimit.isExhausted()) {
-    throw new Error(
-      `GitHub API rate limit exhausted. ${githubRateLimit.getStatusMessage()}`
-    );
+    throw new GitHubRateLimitError(githubRateLimit.getResetTime());
   }
 
-  // Try main first using Git Trees API
-  const mainUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/trees/main`;
-  const mainResponse = await githubFetch(mainUrl);
+  try {
+    // Try main first using Git Trees API
+    const mainUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/trees/main`;
+    const mainResponse = await githubFetch(mainUrl);
 
-  if (mainResponse.ok) {
-    return "main";
+    if (mainResponse.ok) {
+      return "main";
+    }
+
+    // Check for specific error types
+    if (mainResponse.status === 403) {
+      throw new GitHubAccessDeniedError(repoString);
+    }
+
+    // Try master
+    const masterUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/trees/master`;
+    const masterResponse = await githubFetch(masterUrl);
+
+    if (masterResponse.ok) {
+      return "master";
+    }
+
+    if (masterResponse.status === 403) {
+      throw new GitHubAccessDeniedError(repoString);
+    }
+
+    // Neither branch found - repo might not exist
+    throw new GitHubNotFoundError(repoString);
+  } catch (error) {
+    if (error instanceof GitHubRateLimitError || 
+        error instanceof GitHubAccessDeniedError ||
+        error instanceof GitHubNotFoundError) {
+      throw error;
+    }
+    throw new NetworkError(`https://github.com/${repoString}`, error instanceof Error ? error : undefined);
   }
-
-  // Try master
-  const masterUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/trees/master`;
-  const masterResponse = await githubFetch(masterUrl);
-
-  if (masterResponse.ok) {
-    return "master";
-  }
-
-  throw new Error(
-    `Could not detect default branch for ${owner}/${repo}. ` +
-      `Neither 'main' nor 'master' branches exist or repo is not accessible.`
-  );
 }
 
 /**
@@ -159,11 +181,11 @@ async function fetchGitTree(
   repo: string,
   branch: string
 ): Promise<GitHubTreeResponse> {
+  const repoString = `${owner}/${repo}`;
+
   // Check rate limit before making request
   if (githubRateLimit.isExhausted()) {
-    throw new Error(
-      `GitHub API rate limit exhausted. ${githubRateLimit.getStatusMessage()}`
-    );
+    throw new GitHubRateLimitError(githubRateLimit.getResetTime());
   }
 
   if (githubRateLimit.isLow()) {
@@ -171,20 +193,38 @@ async function fetchGitTree(
   }
 
   const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
-  const response = await githubFetch(url);
+  
+  try {
+    const response = await githubFetch(url);
 
-  if (!response.ok) {
-    if (response.status === 404) {
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new GitHubNotFoundError(repoString);
+      }
+      if (response.status === 403) {
+        // Could be rate limit or access denied
+        if (githubRateLimit.isExhausted()) {
+          throw new GitHubRateLimitError(githubRateLimit.getResetTime());
+        }
+        throw new GitHubAccessDeniedError(repoString);
+      }
       throw new Error(
-        `Repository or branch not found: ${owner}/${repo}@${branch}`
+        `GitHub API error: ${response.status} ${response.statusText}`
       );
     }
-    throw new Error(
-      `GitHub API error: ${response.status} ${response.statusText}`
-    );
-  }
 
-  return response.json() as Promise<GitHubTreeResponse>;
+    return response.json() as Promise<GitHubTreeResponse>;
+  } catch (error) {
+    if (error instanceof GitHubRateLimitError ||
+        error instanceof GitHubNotFoundError ||
+        error instanceof GitHubAccessDeniedError) {
+      throw error;
+    }
+    if (error instanceof Error && error.message.includes("GitHub API error")) {
+      throw error;
+    }
+    throw new NetworkError(url, error instanceof Error ? error : undefined);
+  }
 }
 
 /**

@@ -80,7 +80,6 @@ export class RateLimitTracker {
       return "Rate limit info not available";
     }
 
-    const resetDate = new Date(this.info.reset * 1000);
     const minutesUntilReset = Math.ceil(this.getTimeUntilReset() / 60000);
 
     if (this.isExhausted()) {
@@ -92,6 +91,15 @@ export class RateLimitTracker {
     }
 
     return `Rate limit: ${this.info.remaining}/${this.info.limit} remaining`;
+  }
+
+  /**
+   * Gets the reset time as a Date object.
+   * Returns undefined if no rate limit info is available.
+   */
+  getResetTime(): Date | undefined {
+    if (!this.info) return undefined;
+    return new Date(this.info.reset * 1000);
   }
 }
 

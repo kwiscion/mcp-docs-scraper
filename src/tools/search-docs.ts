@@ -4,6 +4,7 @@
 
 import { cacheManager } from "../services/cache-manager.js";
 import { SearchIndex, type SearchResult } from "../services/search-index.js";
+import { CacheNotFoundError, ValidationError, DocsError } from "../types/errors.js";
 
 /**
  * Input for the search_docs tool.
@@ -49,11 +50,11 @@ export async function searchDocs(
 
   // Validate required parameters
   if (!docs_id) {
-    throw new Error("Missing required parameter: docs_id");
+    throw new ValidationError("Missing required parameter: docs_id", "docs_id");
   }
 
   if (!query || typeof query !== "string") {
-    throw new Error("Missing required parameter: query");
+    throw new ValidationError("Missing required parameter: query", "query");
   }
 
   // Validate limit
@@ -62,15 +63,17 @@ export async function searchDocs(
   // Find the cached docs entry to determine source type
   const meta = await cacheManager.findById(docs_id);
   if (!meta) {
-    throw new Error(`Documentation not found in cache: "${docs_id}"`);
+    throw new CacheNotFoundError(docs_id);
   }
 
   // Load the search index
   const indexJson = await cacheManager.getSearchIndex(meta.source, docs_id);
   if (!indexJson) {
-    throw new Error(
-      `Search index not found for "${docs_id}". Please re-index the documentation.`
-    );
+    throw new DocsError("CACHE_NOT_FOUND", `Search index not found for "${docs_id}"`, {
+      userMessage: `Search index not found for "${docs_id}". Please re-index the documentation.`,
+      suggestions: ["Run index_docs with force_refresh: true to rebuild the search index"],
+      context: { docs_id },
+    });
   }
 
   // Parse and search
@@ -78,8 +81,12 @@ export async function searchDocs(
   try {
     searchIndex = SearchIndex.fromJSON(indexJson);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    throw new Error(`Failed to load search index: ${message}`);
+    throw new DocsError("PARSE_ERROR", "Failed to load search index", {
+      userMessage: "Search index is corrupted. Please re-index the documentation.",
+      suggestions: ["Run index_docs with force_refresh: true to rebuild the search index"],
+      context: { docs_id },
+      cause: error instanceof Error ? error : undefined,
+    });
   }
 
   // Perform the search

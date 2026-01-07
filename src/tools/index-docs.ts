@@ -17,6 +17,13 @@ import { crawlWebsite } from "../services/web-scraper.js";
 import { cleanHtml } from "../services/content-cleaner.js";
 import { extractDomain, normalizeUrl } from "../utils/url.js";
 import { detectGitHubRepo } from "../services/github-detector.js";
+import {
+  InvalidUrlError,
+  NoContentError,
+  ScrapingBlockedError,
+  ValidationError,
+  wrapError,
+} from "../types/errors.js";
 
 /**
  * Input parameters for index_docs tool.
@@ -317,9 +324,18 @@ async function indexFromScraping(
   });
 
   if (crawlResult.pages.length === 0) {
-    throw new Error(
-      `No pages found at ${normalizedUrl}. The site may block crawlers or have no content.`
-    );
+    // Check if crawling was blocked
+    if (
+      crawlResult.skipped.some(
+        (s) => s.reason.includes("robots.txt") || s.reason.includes("403")
+      )
+    ) {
+      throw new ScrapingBlockedError(
+        normalizedUrl,
+        "Site blocked automated access"
+      );
+    }
+    throw new NoContentError(normalizedUrl);
   }
 
   console.error(
@@ -383,9 +399,7 @@ async function indexFromScraping(
   }
 
   if (processedCount === 0) {
-    throw new Error(
-      `No pages could be processed from ${normalizedUrl}. Content may be too short or invalid.`
-    );
+    throw new NoContentError(normalizedUrl);
   }
 
   // Sort tree nodes
@@ -443,7 +457,7 @@ export async function indexDocs(
 
   // Validate required parameters
   if (!url) {
-    throw new Error("Missing required parameter: url");
+    throw new ValidationError("Missing required parameter: url", "url");
   }
 
   // Parse URL to determine source
@@ -452,8 +466,9 @@ export async function indexDocs(
   // Handle explicit type requests
   if (type === "github") {
     if (!githubInfo) {
-      throw new Error(
-        `Invalid GitHub URL: "${url}". Expected format: https://github.com/owner/repo`
+      throw new InvalidUrlError(
+        url,
+        "Expected GitHub URL format: https://github.com/owner/repo"
       );
     }
 

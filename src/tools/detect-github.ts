@@ -6,6 +6,7 @@ import {
   detectGitHubRepo,
   type GitHubDetectionResult,
 } from "../services/github-detector.js";
+import { ValidationError } from "../types/errors.js";
 
 /**
  * Input for the detect_github_repo tool.
@@ -31,7 +32,7 @@ export async function detectGitHub(
 
   // Validate required parameters
   if (!url) {
-    throw new Error("Missing required parameter: url");
+    throw new ValidationError("Missing required parameter: url", "url");
   }
 
   // Run detection

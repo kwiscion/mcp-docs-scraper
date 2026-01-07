@@ -9,7 +9,7 @@
  * - Convert relative URLs to absolute
  */
 
-import TurndownService from "turndown";
+import TurndownService, { Node } from "turndown";
 import * as cheerio from "cheerio";
 
 /**
@@ -117,12 +117,11 @@ function createTurndownService(baseUrl?: string): TurndownService {
       );
     },
     replacement: (_content, node) => {
-      const pre = node as HTMLPreElement;
-      const code = pre.querySelector("code");
+      const code = node.firstChild as Node | null;
       if (!code) return "";
 
       // Try to extract language from class
-      const classList = code.className || "";
+      const classList = code.getAttribute?.("class") ?? "";
       const langMatch = classList.match(/(?:language-|lang-)(\w+)/);
       const lang = langMatch ? langMatch[1] : "";
 
@@ -155,8 +154,8 @@ function createTurndownService(baseUrl?: string): TurndownService {
     turndown.addRule("absoluteLinks", {
       filter: "a",
       replacement: (content, node) => {
-        const element = node as HTMLAnchorElement;
-        const href = element.getAttribute("href");
+        const element = node as Node;
+        const href = element.getAttribute?.("href") ?? "";
 
         if (!href || !content.trim()) {
           return content;
@@ -184,9 +183,9 @@ function createTurndownService(baseUrl?: string): TurndownService {
     turndown.addRule("absoluteImages", {
       filter: "img",
       replacement: (_content, node) => {
-        const element = node as HTMLImageElement;
-        const src = element.getAttribute("src");
-        const alt = element.getAttribute("alt") || "";
+        const element = node as Node;
+        const src = element.getAttribute?.("src") ?? "";
+        const alt = element.getAttribute?.("alt") ?? "";
 
         if (!src) {
           return "";
@@ -209,7 +208,9 @@ function createTurndownService(baseUrl?: string): TurndownService {
 /**
  * Extracts the main content area from an HTML document.
  */
-function extractMainContent($: cheerio.CheerioAPI): cheerio.Cheerio<cheerio.Element> | null {
+function extractMainContent(
+  $: cheerio.CheerioAPI
+): ReturnType<cheerio.CheerioAPI> | null {
   // Try each selector in priority order
   for (const selector of MAIN_CONTENT_SELECTORS) {
     const element = $(selector).first();
@@ -219,7 +220,7 @@ function extractMainContent($: cheerio.CheerioAPI): cheerio.Cheerio<cheerio.Elem
   }
 
   // Fallback: find the element with the most text content
-  let bestElement: cheerio.Cheerio<cheerio.Element> | null = null;
+  let bestElement: ReturnType<cheerio.CheerioAPI> | null = null;
   let maxTextLength = 0;
 
   $("div, section").each((_, elem) => {
@@ -263,7 +264,9 @@ function extractTitle($: cheerio.CheerioAPI): string | undefined {
 /**
  * Extracts headings from Markdown content.
  */
-function extractHeadings(markdown: string): Array<{ level: number; text: string }> {
+function extractHeadings(
+  markdown: string
+): Array<{ level: number; text: string }> {
   const headings: Array<{ level: number; text: string }> = [];
   const lines = markdown.split("\n");
 
@@ -357,4 +360,3 @@ export function cleanHtml(
 export const contentCleaner = {
   clean: cleanHtml,
 };
-

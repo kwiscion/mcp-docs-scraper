@@ -3,6 +3,7 @@
  */
 
 import { cacheManager } from "../services/cache-manager.js";
+import { CacheNotFoundError, ValidationError } from "../types/errors.js";
 
 /**
  * Input parameters for get_docs_content tool.
@@ -92,20 +93,18 @@ export async function getDocsContent(
 
   // Validate required parameters
   if (!docs_id) {
-    throw new Error("Missing required parameter: docs_id");
+    throw new ValidationError("Missing required parameter: docs_id", "docs_id");
   }
 
   if (!paths || !Array.isArray(paths) || paths.length === 0) {
-    throw new Error("Missing required parameter: paths (must be a non-empty array of file paths)");
+    throw new ValidationError("Missing required parameter: paths (must be a non-empty array of file paths)", "paths");
   }
 
   // Find the cached docs entry to determine source type
   const meta = await cacheManager.findById(docs_id);
 
   if (!meta) {
-    throw new Error(
-      `Documentation not found in cache: "${docs_id}". Run index_docs first.`
-    );
+    throw new CacheNotFoundError(docs_id);
   }
 
   const contents: Record<string, FileContent> = {};

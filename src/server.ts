@@ -10,6 +10,7 @@ import {
   searchDocs,
   detectGitHub,
 } from "./tools/index.js";
+import { createErrorResponse } from "./types/errors.js";
 
 export interface DocsScraperServer {
   run(): Promise<void>;
@@ -131,17 +132,7 @@ export function createServer(): DocsScraperServer {
           ],
         };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ error: message }, null, 2),
-            },
-          ],
-          isError: true,
-        };
+        return createErrorResponse(error);
       }
     }
   );
@@ -179,17 +170,7 @@ export function createServer(): DocsScraperServer {
           ],
         };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ error: message }, null, 2),
-            },
-          ],
-          isError: true,
-        };
+        return createErrorResponse(error);
       }
     }
   );
@@ -226,17 +207,7 @@ export function createServer(): DocsScraperServer {
           ],
         };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ error: message }, null, 2),
-            },
-          ],
-          isError: true,
-        };
+        return createErrorResponse(error);
       }
     }
   );
@@ -271,17 +242,7 @@ export function createServer(): DocsScraperServer {
           ],
         };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ error: message }, null, 2),
-            },
-          ],
-          isError: true,
-        };
+        return createErrorResponse(error);
       }
     }
   );
@@ -311,17 +272,7 @@ export function createServer(): DocsScraperServer {
           ],
         };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ error: message }, null, 2),
-            },
-          ],
-          isError: true,
-        };
+        return createErrorResponse(error);
       }
     }
   );

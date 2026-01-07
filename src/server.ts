@@ -8,6 +8,7 @@ import {
   getDocsTree,
   getDocsContent,
   searchDocs,
+  detectGitHub,
 } from "./tools/index.js";
 
 export interface DocsScraperServer {
@@ -261,6 +262,46 @@ export function createServer(): DocsScraperServer {
     async ({ docs_id, query, limit }) => {
       try {
         const result = await searchDocs({ docs_id, query, limit });
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ error: message }, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // Register detect_github_repo tool
+  server.registerTool(
+    "detect_github_repo",
+    {
+      title: "Detect GitHub Repo",
+      description:
+        "Find GitHub repository from a documentation website URL. Use before index_docs to check if a site has a GitHub repo.",
+      inputSchema: {
+        url: z
+          .string()
+          .describe("Docs website URL to analyze (e.g., https://zod.dev)"),
+      },
+    },
+    async ({ url }) => {
+      try {
+        const result = await detectGitHub({ url });
         return {
           content: [
             {

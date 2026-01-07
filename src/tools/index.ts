@@ -30,4 +30,9 @@ export {
   type SearchDocsInput,
   type SearchDocsOutput,
 } from "./search-docs.js";
+export {
+  detectGitHub,
+  type DetectGitHubInput,
+  type DetectGitHubOutput,
+} from "./detect-github.js";
 

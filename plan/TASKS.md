@@ -97,7 +97,7 @@
 
 ## Phase 5: Intelligence
 
-- **[TODO]** Task 14: GitHub Repo Detection
+- **[DONE]** Task 14: GitHub Repo Detection
 
   - Implement detection logic
   - Create detect_github_repo tool

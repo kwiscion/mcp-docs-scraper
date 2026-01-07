@@ -76,7 +76,7 @@
 
 ## Phase 4: Web Scraping
 
-- **[TODO]** Task 11: Content Cleaner Service
+- **[DONE]** Task 11: Content Cleaner Service
 
   - Implement HTML→Markdown conversion
   - Configure Turndown rules

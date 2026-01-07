@@ -7,6 +7,7 @@ import {
   indexDocs,
   getDocsTree,
   getDocsContent,
+  searchDocs,
 } from "./tools/index.js";
 
 export interface DocsScraperServer {
@@ -215,6 +216,51 @@ export function createServer(): DocsScraperServer {
     async ({ docs_id, paths, format }) => {
       try {
         const result = await getDocsContent({ docs_id, paths, format });
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ error: message }, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // Register search_docs tool
+  server.registerTool(
+    "search_docs",
+    {
+      title: "Search Docs",
+      description:
+        "Full-text search within cached documentation. Returns relevant results with matching snippets.",
+      inputSchema: {
+        docs_id: z
+          .string()
+          .describe("The docs ID from index_docs response (required)"),
+        query: z.string().describe("Search query (required)"),
+        limit: z
+          .number()
+          .optional()
+          .describe("Max results to return (default: 10, max: 50)"),
+      },
+    },
+    async ({ docs_id, query, limit }) => {
+      try {
+        const result = await searchDocs({ docs_id, query, limit });
         return {
           content: [
             {

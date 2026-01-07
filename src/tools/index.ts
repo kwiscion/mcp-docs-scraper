@@ -25,4 +25,9 @@ export {
   type GetDocsContentOutput,
   type FileContent,
 } from "./get-content.js";
+export {
+  searchDocs,
+  type SearchDocsInput,
+  type SearchDocsOutput,
+} from "./search-docs.js";
 

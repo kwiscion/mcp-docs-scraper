@@ -105,9 +105,12 @@ export class SearchIndex {
       return [];
     }
 
-    const results = this.miniSearch.search(query, { limit });
+    // MiniSearch returns all results, we slice them to the limit
+    const results = this.miniSearch.search(query);
 
-    return results.map((result) => this.toSearchResult(result, query));
+    return results
+      .slice(0, limit)
+      .map((result) => this.toSearchResult(result, query));
   }
 
   /**

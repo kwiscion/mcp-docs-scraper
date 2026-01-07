@@ -67,7 +67,7 @@
   - Build index during docs indexing
   - Store index in cache
 
-- **[TODO]** Task 10: `search_docs` Tool
+- **[DONE]** Task 10: `search_docs` Tool
   - Implement search tool
   - Return results with snippets
   - Respect result limits

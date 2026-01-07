@@ -9,6 +9,10 @@ import {
   fetchFileContent,
   type FetchTreeResult,
 } from "../services/github-fetcher.js";
+import {
+  SearchIndex,
+  createIndexableDocument,
+} from "../services/search-index.js";
 
 /**
  * Input parameters for index_docs tool.
@@ -179,9 +183,10 @@ async function indexFromGitHub(
   // Collect all file paths to download
   const filePaths = collectFilePaths(treeResult.tree);
 
-  // Download all file contents
+  // Download all file contents and build search index
   let totalSize = 0;
   let downloadedCount = 0;
+  const searchIndex = new SearchIndex();
 
   for (const filePath of filePaths) {
     try {
@@ -192,15 +197,23 @@ async function indexFromGitHub(
       );
 
       if (content) {
+        // Store content in cache
         await cacheManager.storeContent("github", cacheId, filePath, content.content);
         totalSize += content.size;
         downloadedCount++;
+
+        // Add to search index
+        const indexDoc = createIndexableDocument(filePath, content.content);
+        searchIndex.addDocument(indexDoc);
       }
     } catch (error) {
       // Log but continue - some files might fail
       console.error(`Failed to download ${filePath}:`, error);
     }
   }
+
+  // Store search index
+  await cacheManager.storeSearchIndex("github", cacheId, searchIndex.toJSON());
 
   // Store metadata
   const indexedAt = new Date().toISOString();

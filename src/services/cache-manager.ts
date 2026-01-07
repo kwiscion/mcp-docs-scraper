@@ -66,6 +66,13 @@ export class CacheManager {
   }
 
   /**
+   * Gets the search index file path for a docs entry.
+   */
+  private getSearchIndexPath(source: "github" | "scraped", id: string): string {
+    return join(this.getEntryDir(source, id), "search-index.json");
+  }
+
+  /**
    * Generates an expiration timestamp based on source type.
    */
   private getExpiresAt(source: "github" | "scraped"): string {
@@ -116,6 +123,40 @@ export class CacheManager {
   ): Promise<string | null> {
     const contentPath = join(this.getContentDir(source, id), filePath);
     return readText(contentPath);
+  }
+
+  /**
+   * Stores a search index for a docs entry.
+   */
+  async storeSearchIndex(
+    source: "github" | "scraped",
+    id: string,
+    indexJson: string
+  ): Promise<void> {
+    const indexPath = this.getSearchIndexPath(source, id);
+    await writeText(indexPath, indexJson);
+  }
+
+  /**
+   * Retrieves a search index for a docs entry.
+   * Returns null if not found.
+   */
+  async getSearchIndex(
+    source: "github" | "scraped",
+    id: string
+  ): Promise<string | null> {
+    const indexPath = this.getSearchIndexPath(source, id);
+    return readText(indexPath);
+  }
+
+  /**
+   * Checks if a search index exists for a docs entry.
+   */
+  async hasSearchIndex(
+    source: "github" | "scraped",
+    id: string
+  ): Promise<boolean> {
+    return exists(this.getSearchIndexPath(source, id));
   }
 
   /**

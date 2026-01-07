@@ -61,7 +61,7 @@
 
 ## Phase 3: Search
 
-- **[TODO]** Task 9: Full-Text Search Index
+- **[DONE]** Task 9: Full-Text Search Index
 
   - Integrate MiniSearch
   - Build index during docs indexing

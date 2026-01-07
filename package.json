@@ -7,21 +7,39 @@
   "bin": {
     "mcp-docs-scraper": "dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
-    "create-test-cache": "tsx scripts/create-test-cache.ts"
+    "prepublishOnly": "pnpm build"
   },
   "keywords": [
     "mcp",
     "model-context-protocol",
     "documentation",
     "scraper",
-    "ai"
+    "ai",
+    "llm",
+    "claude",
+    "cursor",
+    "github",
+    "web-scraper"
   ],
-  "author": "",
+  "author": "Kuba Kwiecien <kwiscion@gmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kwiscion/mcp-docs-scraper.git"
+  },
+  "homepage": "https://github.com/kwiscion/mcp-docs-scraper#readme",
+  "bugs": {
+    "url": "https://github.com/kwiscion/mcp-docs-scraper/issues"
+  },
   "engines": {
     "node": ">=22.0.0"
   },

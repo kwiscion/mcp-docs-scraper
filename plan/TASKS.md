@@ -118,7 +118,7 @@
   - Consistent error responses
   - Graceful degradation
 
-- **[TODO]** Task 17: Documentation & Publishing Prep
+- **[DONE]** Task 17: Documentation & Publishing Prep
   - Complete README with examples
   - MCP config examples
   - License and metadata

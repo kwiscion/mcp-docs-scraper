@@ -23,93 +23,80 @@ export function createServer(): DocsScraperServer {
     version: "0.1.0",
   });
 
-  // Register list_cached_docs tool
+  // ===========================================================================
+  // list_cached_docs
+  // ===========================================================================
   server.registerTool(
     "list_cached_docs",
     {
       title: "List Cached Docs",
-      description: "List all documentation sets in the local cache",
+      description:
+        "List all cached documentation sets. Use to find docs_id values for other tools, or check if docs need indexing. Returns: id, source (github/scraped), repo or base_url, indexed_at, page_count, total_size_bytes.",
       inputSchema: {},
     },
     async () => {
       const result = await listCachedDocs();
       return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };
     }
   );
 
-  // Register clear_cache tool
+  // ===========================================================================
+  // clear_cache
+  // ===========================================================================
   server.registerTool(
     "clear_cache",
     {
       title: "Clear Cache",
       description:
-        "Remove cached documentation. Pass docs_id to clear specific entry, or all:true to clear everything.",
+        "Remove cached documentation. Use docs_id for specific entry, or all:true to clear everything. Returns cleared IDs and remaining count.",
       inputSchema: {
         docs_id: z
           .string()
           .optional()
-          .describe("Specific docs ID to clear (optional)"),
-        all: z
-          .boolean()
-          .optional()
-          .describe("Clear all cached docs (default: false)"),
+          .describe("Specific docs ID to clear (e.g., 'colinhacks_zod')"),
+        all: z.boolean().optional().describe("Clear all cached docs"),
       },
     },
     async ({ docs_id, all }) => {
       const result = await clearCache({ docs_id, all });
       return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };
     }
   );
 
-  // Register index_docs tool
+  // ===========================================================================
+  // index_docs
+  // ===========================================================================
   server.registerTool(
     "index_docs",
     {
       title: "Index Docs",
       description:
-        "Fetch and cache documentation from a GitHub repository. Downloads markdown files and stores them locally for fast access.",
+        "Fetch and cache documentation from GitHub or website. REQUIRED before search_docs/get_docs_content. Auto mode tries GitHub first (cleaner), falls back to scraping. Returns docs_id for subsequent operations.",
       inputSchema: {
         url: z
           .string()
           .describe(
-            "GitHub repository URL (e.g., https://github.com/owner/repo)"
+            "GitHub repo URL (https://github.com/owner/repo) or docs website URL"
           ),
         type: z
           .enum(["github", "scrape", "auto"])
           .optional()
-          .describe(
-            'Source type: "github", "scrape", or "auto" (default: auto)'
-          ),
+          .describe("Source type (default: auto)"),
         force_refresh: z
           .boolean()
           .optional()
-          .describe("Ignore cache and re-fetch (default: false)"),
+          .describe("Re-fetch even if cached"),
       },
     },
     async ({ url, type, force_refresh }) => {
       try {
         const result = await indexDocs({ url, type, force_refresh });
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       } catch (error) {
         return createErrorResponse(error);
@@ -117,37 +104,28 @@ export function createServer(): DocsScraperServer {
     }
   );
 
-  // Register get_docs_tree tool
+  // ===========================================================================
+  // get_docs_tree
+  // ===========================================================================
   server.registerTool(
     "get_docs_tree",
     {
       title: "Get Docs Tree",
       description:
-        "Get the hierarchical file tree for cached documentation. Use after index_docs to browse available files.",
+        "Get file/folder structure of cached docs. Use to discover file paths before get_docs_content. Optionally filter by path or limit depth.",
       inputSchema: {
         docs_id: z
           .string()
-          .describe("The docs ID from index_docs response (required)"),
-        path: z
-          .string()
-          .optional()
-          .describe("Subtree path to filter (optional, default: root)"),
-        max_depth: z
-          .number()
-          .optional()
-          .describe("Maximum depth to return (optional, default: unlimited)"),
+          .describe("Docs ID from index_docs or list_cached_docs"),
+        path: z.string().optional().describe("Subtree path (e.g., 'docs/api')"),
+        max_depth: z.number().optional().describe("Max folder depth to return"),
       },
     },
     async ({ docs_id, path, max_depth }) => {
       try {
         const result = await getDocsTree({ docs_id, path, max_depth });
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       } catch (error) {
         return createErrorResponse(error);
@@ -155,36 +133,35 @@ export function createServer(): DocsScraperServer {
     }
   );
 
-  // Register get_docs_content tool
+  // ===========================================================================
+  // get_docs_content
+  // ===========================================================================
   server.registerTool(
     "get_docs_content",
     {
       title: "Get Docs Content",
       description:
-        "Retrieve actual content of specific doc files from cache. Returns content with extracted headings for navigation.",
+        "Retrieve markdown content of specific files. Use after search_docs to get full content of relevant files. Returns content, title, headings, and size for each path.",
       inputSchema: {
         docs_id: z
           .string()
-          .describe("The docs ID from index_docs response (required)"),
+          .describe("Docs ID from index_docs or list_cached_docs"),
         paths: z
           .array(z.string())
-          .describe("Array of file paths to fetch (required)"),
+          .describe(
+            "File paths to retrieve (e.g., ['README.md', 'docs/guide.md'])"
+          ),
         format: z
           .enum(["markdown", "raw"])
           .optional()
-          .describe('Output format: "markdown" or "raw" (default: markdown)'),
+          .describe("Output format (default: markdown)"),
       },
     },
     async ({ docs_id, paths, format }) => {
       try {
         const result = await getDocsContent({ docs_id, paths, format });
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       } catch (error) {
         return createErrorResponse(error);
@@ -192,34 +169,35 @@ export function createServer(): DocsScraperServer {
     }
   );
 
-  // Register search_docs tool
+  // ===========================================================================
+  // search_docs
+  // ===========================================================================
   server.registerTool(
     "search_docs",
     {
       title: "Search Docs",
       description:
-        "Full-text search within cached documentation. Returns relevant results with matching snippets.",
+        "Full-text search within cached docs. FASTEST way to find information—use before get_docs_content. Returns ranked results with file paths and snippets.",
       inputSchema: {
         docs_id: z
           .string()
-          .describe("The docs ID from index_docs response (required)"),
-        query: z.string().describe("Search query (required)"),
+          .describe("Docs ID from index_docs or list_cached_docs"),
+        query: z
+          .string()
+          .describe(
+            "Search query—natural language works well (e.g., 'validate email')"
+          ),
         limit: z
           .number()
           .optional()
-          .describe("Max results to return (default: 10, max: 50)"),
+          .describe("Max results (default: 10, max: 50)"),
       },
     },
     async ({ docs_id, query, limit }) => {
       try {
         const result = await searchDocs({ docs_id, query, limit });
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       } catch (error) {
         return createErrorResponse(error);
@@ -227,29 +205,24 @@ export function createServer(): DocsScraperServer {
     }
   );
 
-  // Register detect_github_repo tool
+  // ===========================================================================
+  // detect_github_repo
+  // ===========================================================================
   server.registerTool(
     "detect_github_repo",
     {
       title: "Detect GitHub Repo",
       description:
-        "Find GitHub repository from a documentation website URL. Use before index_docs to check if a site has a GitHub repo.",
+        "Find GitHub repository from a docs website URL. Use before index_docs to check if cleaner GitHub source exists. Returns repo in 'owner/repo' format with confidence level.",
       inputSchema: {
-        url: z
-          .string()
-          .describe("Docs website URL to analyze (e.g., https://zod.dev)"),
+        url: z.string().describe("Docs website URL (e.g., 'https://zod.dev')"),
       },
     },
     async ({ url }) => {
       try {
         const result = await detectGitHub({ url });
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
       } catch (error) {
         return createErrorResponse(error);
@@ -257,6 +230,9 @@ export function createServer(): DocsScraperServer {
     }
   );
 
+  // ===========================================================================
+  // Server Transport
+  // ===========================================================================
   const transport = new StdioServerTransport();
 
   return {
